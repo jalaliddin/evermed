@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php --version)",
+      "Bash(composer --version)",
+      "Bash(npm --version)",
+      "Bash(mysql --version)",
+      "Bash(mysql -u root -proot -e \"CREATE DATABASE IF NOT EXISTS evermed_central CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(mysql -u root --password=\"\" -e \"CREATE DATABASE IF NOT EXISTS evermed_central CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(composer require *)",
+      "Bash(php artisan *)",
+      "Bash(mysql -u root -proot -e \"SHOW DATABASES LIKE 'evermed%';\")",
+      "Bash(mysql -u root -proot -e \"SELECT id, name, slug, status FROM evermed_central.tenants;\")",
+      "Bash(mysql -u root -proot -e \"CREATE DATABASE IF NOT EXISTS evermed_tenant_demo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(2>&1)",
+      "Bash(mysql -u root -proot -e ' *)",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(composer dump-autoload *)",
+      "Bash(npm run *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(php -v)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker-compose --version)",
+      "Bash(docker run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8094/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8094/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"admin@eversoft.uz\",\"password\":\"admin123\"}')",
+      "Bash(curl -s -w \"\\\\n%{http_code}\" http://localhost:8094/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"admin@eversoft.uz\",\"password\":\"admin123\"}')",
+      "Bash(curl -s -w \"\\\\n%{http_code}\\\\n\" http://localhost:8094/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"admin@eversoft.uz\",\"password\":\"admin123\"}')",
+      "Bash(curl -s http://localhost:8094/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"admin@eversoft.uz\",\"password\":\"admin123\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -o /dev/null -w \"Frontend: %{http_code}\\\\n\" http://localhost:8094/)",
+      "Bash(curl -s -o /dev/null -w \"SPA route: %{http_code}\\\\n\" http://localhost:8094/dashboard/home)",
+      "Bash(curl -s -o /dev/null -w \"API health: %{http_code}\\\\n\" http://localhost:8094/up)"
+    ]
+  }
+}

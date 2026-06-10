@@ -1,0 +1,82 @@
+services:
+  # ─── MySQL ──────────────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: evermed_central
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # ─── Laravel PHP-FPM ────────────────────────────────────────────────────────
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      APP_ENV: production
+      APP_URL: http://med.eversoft.uz
+      DB_HOST: mysql
+    volumes:
+      - storage_data:/var/www/html/storage
+      - cache_data:/var/www/html/bootstrap/cache
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ─── Queue Worker ────────────────────────────────────────────────────────────
+  queue:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90", "--max-time=3600"]
+    env_file: ./backend/.env
+    environment:
+      APP_ENV: production
+      DB_HOST: mysql
+    volumes:
+      - storage_data:/var/www/html/storage
+    depends_on:
+      - app
+
+  # ─── Scheduler (cron every minute) ──────────────────────────────────────────
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["/bin/sh", "-c", "while true; do php artisan schedule:run >> /proc/1/fd/1 2>&1; sleep 60; done"]
+    env_file: ./backend/.env
+    environment:
+      APP_ENV: production
+      DB_HOST: mysql
+    volumes:
+      - storage_data:/var/www/html/storage
+    depends_on:
+      - app
+
+  # ─── Nginx (frontend SPA + API proxy) ───────────────────────────────────────
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8094:80"
+    depends_on:
+      - app
+
+volumes:
+  mysql_data:
+  storage_data:
+  cache_data:

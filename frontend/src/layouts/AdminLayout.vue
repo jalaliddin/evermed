@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <v-navigation-drawer permanent :width="240" style="background: #0D1B2A;">
+    <v-navigation-drawer permanent :width="240" theme="dark" style="background: #0D1B2A;">
       <div class="pa-4">
         <div class="text-h6 font-weight-bold text-white">EverMED</div>
         <div class="text-caption" style="color: rgba(255,255,255,0.5);">Super Admin Panel</div>

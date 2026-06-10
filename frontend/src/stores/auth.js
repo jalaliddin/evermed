@@ -13,8 +13,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isTenant = computed(() => userType.value === 'tenant')
   const role = computed(() => user.value?.role)
 
-  async function login(email, password) {
-    const res = await api.post('/auth/login', { email, password })
+  async function login(payload) {
+    const res = await api.post('/auth/login', payload)
     const data = res.data
 
     token.value = data.token
@@ -25,10 +25,9 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('user', JSON.stringify(data.user))
     localStorage.setItem('user_type', data.type)
 
-    // For tenant users, store tenant_id for API calls
-    if (data.type === 'tenant' && data.user?.tenant_id) {
-      tenantId.value = data.user.tenant_id
-      localStorage.setItem('tenant_id', data.user.tenant_id)
+    if (data.type === 'tenant' && data.tenant_id) {
+      tenantId.value = data.tenant_id
+      localStorage.setItem('tenant_id', data.tenant_id)
     }
 
     return data

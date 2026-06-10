@@ -33,7 +33,9 @@
       "Bash(curl -s -o /dev/null -w \"Frontend: %{http_code}\\\\n\" http://localhost:8094/)",
       "Bash(curl -s -o /dev/null -w \"SPA route: %{http_code}\\\\n\" http://localhost:8094/dashboard/home)",
       "Bash(curl -s -o /dev/null -w \"API health: %{http_code}\\\\n\" http://localhost:8094/up)",
-      "Bash(xargs ls -la)"
+      "Bash(xargs ls -la)",
+      "Bash(xargs ls)",
+      "Bash(xargs cat)"
     ]
   }
 }

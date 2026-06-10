@@ -21,5 +21,6 @@ Route::prefix('admin')
     ->group(function () {
         Route::get('dashboard', [AdminDashboardController::class, 'index']);
         Route::apiResource('tenants', TenantController::class);
+        Route::post('tenants/{id}/reset-password', [TenantController::class, 'resetAdminPassword']);
         Route::apiResource('subscriptions', SubscriptionController::class)->only(['index', 'store', 'update']);
     });

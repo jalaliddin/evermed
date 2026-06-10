@@ -51,6 +51,7 @@
               <v-list-item title="Ko'rish" prepend-icon="mdi-eye" :to="`/admin/tenants/${item.id}`" />
               <v-list-item title="Tahrirlash" prepend-icon="mdi-pencil" @click="openDialog(item)" />
               <v-list-item title="Obuna uzaytirish" prepend-icon="mdi-calendar-plus" @click="openSubscription(item)" />
+              <v-list-item title="Parol o'zgartirish" prepend-icon="mdi-key" @click="openResetPassword(item)" />
               <v-divider />
               <v-list-item
                 :title="item.status === 'active' ? 'Bloklash' : 'Aktivlashtirish'"
@@ -113,6 +114,22 @@
       </v-card>
     </v-dialog>
 
+    <!-- Reset Password Dialog -->
+    <v-dialog v-model="pwDialog" max-width="400">
+      <v-card rounded="xl">
+        <v-card-title class="pa-4">Parol o'zgartirish — {{ pwTarget?.name }}</v-card-title>
+        <v-card-text class="pa-4">
+          <v-text-field v-model="pwForm.email" label="Admin email *" type="email" variant="outlined" class="mb-3" />
+          <v-text-field v-model="pwForm.password" label="Yangi parol *" type="password" variant="outlined" />
+        </v-card-text>
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn @click="pwDialog = false">Bekor</v-btn>
+          <v-btn color="primary" :loading="saving" @click="resetPassword">Saqlash</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snackbar.show" :color="snackbar.color">{{ snackbar.text }}</v-snackbar>
   </div>
 </template>
@@ -129,6 +146,9 @@ const saving = ref(false)
 const search = ref('')
 const dialog = ref(false)
 const subDialog = ref(false)
+const pwDialog = ref(false)
+const pwTarget = ref(null)
+const pwForm = reactive({ email: '', password: '' })
 const editTenant = ref(null)
 const subTarget = ref(null)
 const subMonths = ref(1)
@@ -209,6 +229,25 @@ async function extendSubscription() {
     load(currentOptions)
   } catch {
     snackbar.value = { show: true, text: 'Xatolik', color: 'error' }
+  } finally { saving.value = false }
+}
+
+function openResetPassword(tenant) {
+  pwTarget.value = tenant
+  pwForm.email = ''
+  pwForm.password = ''
+  pwDialog.value = true
+}
+
+async function resetPassword() {
+  if (!pwForm.email || !pwForm.password) return
+  saving.value = true
+  try {
+    await api.post(`/admin/tenants/${pwTarget.value.id}/reset-password`, { email: pwForm.email, password: pwForm.password })
+    snackbar.value = { show: true, text: 'Parol yangilandi', color: 'success' }
+    pwDialog.value = false
+  } catch (e) {
+    snackbar.value = { show: true, text: e.response?.data?.message || 'Xatolik', color: 'error' }
   } finally { saving.value = false }
 }
 

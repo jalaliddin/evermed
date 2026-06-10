@@ -25,10 +25,12 @@ logs:
 
 # ── Seed demo data ────────────────────────────────────────────────────────────
 seed:
+	docker compose exec app php artisan config:clear
 	docker compose exec app php artisan db:seed --force
 
 # ── Full reset (drops tenant DBs, re-migrates, re-seeds) ─────────────────────
 fresh:
+	docker compose exec app php artisan config:clear
 	docker compose exec app php artisan migrate:fresh --force
 	docker compose exec app php artisan db:seed --force
 

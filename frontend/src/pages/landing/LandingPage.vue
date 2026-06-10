@@ -1,19 +1,22 @@
 <template>
+  <v-app>
   <div class="landing">
     <!-- Navbar -->
-    <v-app-bar elevation="0" color="white" border="b">
-      <v-app-bar-title>
-        <div class="d-flex align-center gap-2">
-          <v-icon color="primary" size="28">mdi-hospital-box</v-icon>
-          <span class="font-weight-bold text-h6" style="color: #0D1B2A;">Ever<span class="text-primary">MED</span></span>
+    <header style="position: sticky; top: 0; z-index: 100; background: white; border-bottom: 1px solid rgba(0,0,0,0.08);">
+      <v-container>
+        <div class="d-flex align-center justify-space-between py-3">
+          <div class="d-flex align-center gap-2">
+            <v-icon color="primary" size="28">mdi-hospital-box</v-icon>
+            <span class="font-weight-bold text-h6" style="color: #0D1B2A;">Ever<span class="text-primary">MED</span></span>
+          </div>
+          <div class="d-flex align-center gap-1">
+            <v-btn variant="text" href="#features" class="d-none d-sm-flex">Imkoniyatlar</v-btn>
+            <v-btn variant="text" href="#pricing" class="d-none d-sm-flex">Narxlar</v-btn>
+            <v-btn color="primary" variant="flat" rounded to="/login" class="ml-2">Kirish</v-btn>
+          </div>
         </div>
-      </v-app-bar-title>
-      <template #append>
-        <v-btn variant="text" href="#features" class="d-none d-sm-flex">Imkoniyatlar</v-btn>
-        <v-btn variant="text" href="#pricing" class="d-none d-sm-flex">Narxlar</v-btn>
-        <v-btn color="primary" variant="flat" rounded to="/login" class="ml-2">Kirish</v-btn>
-      </template>
-    </v-app-bar>
+      </v-container>
+    </header>
 
     <!-- Hero -->
     <section class="hero py-16" style="background: linear-gradient(135deg, #0D1B2A 0%, #1a3a5c 100%); min-height: 90vh; display: flex; align-items: center;">
@@ -132,7 +135,7 @@
     </section>
 
     <!-- Footer -->
-    <v-footer style="background: #0D1B2A;">
+    <footer style="background: #0D1B2A;">
       <v-container class="py-4">
         <div class="d-flex flex-wrap justify-space-between align-center gap-2">
           <div class="d-flex align-center gap-2">
@@ -144,8 +147,9 @@
           </div>
         </div>
       </v-container>
-    </v-footer>
+    </footer>
   </div>
+  </v-app>
 </template>
 
 <script setup>

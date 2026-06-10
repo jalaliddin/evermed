@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -24,27 +25,43 @@ class TenantController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|unique:tenants,slug|regex:/^[a-z0-9\-]+$/',
-            'phone' => 'nullable|string',
-            'address' => 'nullable|string',
-            'plan' => 'nullable|string',
+            'name'           => 'required|string|max:255',
+            'slug'           => 'required|string|unique:tenants,slug|regex:/^[a-z0-9\-]+$/',
+            'phone'          => 'nullable|string',
+            'address'        => 'nullable|string',
+            'plan'           => 'nullable|string',
+            'admin_name'     => 'required|string|max:255',
+            'admin_email'    => 'required|email',
+            'admin_password' => 'required|min:6',
         ]);
 
         $tenant = Tenant::create([
-            ...$validated,
-            'id' => $validated['slug'],
-            'status' => 'trial',
+            'id'      => $validated['slug'],
+            'name'    => $validated['name'],
+            'slug'    => $validated['slug'],
+            'phone'   => $validated['phone'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'plan'    => $validated['plan'] ?? 'basic',
+            'status'  => 'trial',
         ]);
 
         $tenant->createDomain(['domain' => $validated['slug'] . '.med.eversoft.uz']);
 
-        // Create tenant database
-        $tenant->run(function () {
+        $adminData = [
+            'name'     => $validated['admin_name'],
+            'email'    => $validated['admin_email'],
+            'password' => $validated['admin_password'],
+            'role'     => 'admin',
+            'is_active' => true,
+        ];
+
+        $tenant->run(function () use ($adminData) {
             \Artisan::call('migrate', [
-                '--path' => 'database/migrations/tenant',
+                '--path'  => 'database/migrations/tenant',
                 '--force' => true,
             ]);
+
+            User::create($adminData);
         });
 
         return response()->json($tenant, 201);

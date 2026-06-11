@@ -35,7 +35,10 @@
       "Bash(curl -s -o /dev/null -w \"API health: %{http_code}\\\\n\" http://localhost:8094/up)",
       "Bash(xargs ls -la)",
       "Bash(xargs ls)",
-      "Bash(xargs cat)"
+      "Bash(xargs cat)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8094/api/auth/login -X POST)",
+      "Bash(docker cp *)",
+      "Bash(curl -s http://localhost:8094/)"
     ]
   }
 }

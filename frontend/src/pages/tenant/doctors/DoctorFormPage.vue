@@ -8,7 +8,7 @@
     <v-row>
       <v-col cols="12" md="7">
         <v-card rounded="xl" class="mb-4">
-          <v-card-title class="pa-4 pb-0">Foydalanuvchi ma'lumotlari</v-card-title>
+          <v-card-title class="pa-4 pb-0">Shifokor ma'lumotlari</v-card-title>
           <v-card-text class="pa-4">
             <v-row>
               <v-col cols="12" sm="6">
@@ -16,12 +16,6 @@
               </v-col>
               <v-col cols="12" sm="6">
                 <v-text-field v-model="form.phone" label="Telefon" variant="outlined" prepend-inner-icon="mdi-phone" />
-              </v-col>
-              <v-col cols="12" sm="6">
-                <v-text-field v-model="form.email" label="Email *" type="email" variant="outlined" :error-messages="errors.email" :readonly="isEdit" />
-              </v-col>
-              <v-col cols="12" sm="6" v-if="!isEdit">
-                <v-text-field v-model="form.password" label="Parol *" type="password" variant="outlined" :error-messages="errors.password" />
               </v-col>
             </v-row>
           </v-card-text>
@@ -94,11 +88,11 @@ const saving = ref(false)
 const snackbar = ref({ show: false, text: '', color: 'success' })
 
 const form = reactive({
-  name: '', email: '', password: '', phone: '',
+  name: '', phone: '',
   specialization: '', room_number: '', consultation_price: 0,
   bio: '', is_active: true,
 })
-const errors = reactive({ name: '', email: '', password: '' })
+const errors = reactive({ name: '' })
 
 const scheduleKeys = {
   monday: 'Dushanba', tuesday: 'Seshanba', wednesday: 'Chorshanba',
@@ -122,10 +116,8 @@ function buildSchedule() {
 }
 
 async function save() {
-  errors.name = errors.email = errors.password = ''
+  errors.name = ''
   if (!form.name) { errors.name = 'Ism majburiy'; return }
-  if (!isEdit.value && !form.email) { errors.email = 'Email majburiy'; return }
-  if (!isEdit.value && !form.password) { errors.password = 'Parol majburiy'; return }
 
   saving.value = true
   try {

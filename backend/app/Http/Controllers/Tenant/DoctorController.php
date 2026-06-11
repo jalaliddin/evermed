@@ -25,40 +25,34 @@ class DoctorController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6',
-            'phone' => 'nullable|string',
-            'avatar' => 'nullable|image|max:2048',
-            'specialization' => 'nullable|string',
-            'room_number' => 'nullable|string',
+            'name'               => 'required|string',
+            'phone'              => 'nullable|string',
+            'specialization'     => 'nullable|string',
+            'room_number'        => 'nullable|string',
             'consultation_price' => 'nullable|numeric|min:0',
-            'schedule' => 'nullable|array',
-            'bio' => 'nullable|string',
+            'schedule'           => 'nullable|array',
+            'bio'                => 'nullable|string',
         ]);
 
-        DB::transaction(function () use ($validated, $request, &$doctor) {
-            $userData = [
-                'name' => $validated['name'],
-                'email' => $validated['email'],
-                'password' => $validated['password'],
-                'role' => 'doctor',
-                'phone' => $validated['phone'] ?? null,
-            ];
-
-            if ($request->hasFile('avatar')) {
-                $userData['avatar'] = $request->file('avatar')->store('users/avatars', 'public');
-            }
-
-            $user = User::create($userData);
+        DB::transaction(function () use ($validated, &$doctor) {
+            // Doctors don't log in — create a non-login user record for display/relations
+            $user = User::create([
+                'name'      => $validated['name'],
+                'email'     => 'doctor_' . uniqid() . '@' . tenant('id') . '.local',
+                'password'  => \Illuminate\Support\Str::random(32),
+                'role'      => 'admin',
+                'phone'     => $validated['phone'] ?? null,
+                'is_active' => true,
+            ]);
 
             $doctor = Doctor::create([
-                'user_id' => $user->id,
-                'specialization' => $validated['specialization'] ?? null,
-                'room_number' => $validated['room_number'] ?? null,
+                'user_id'            => $user->id,
+                'specialization'     => $validated['specialization'] ?? null,
+                'room_number'        => $validated['room_number'] ?? null,
                 'consultation_price' => $validated['consultation_price'] ?? 0,
-                'schedule' => $validated['schedule'] ?? null,
-                'bio' => $validated['bio'] ?? null,
+                'schedule'           => $validated['schedule'] ?? null,
+                'bio'                => $validated['bio'] ?? null,
+                'is_active'          => true,
             ]);
         });
 

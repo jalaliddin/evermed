@@ -22,6 +22,9 @@ Route::middleware([
     InitializeTenancyByRequestData::class,
 ])->prefix('api/tenant')->group(function () {
 
+    // ── Public (no auth required) — browser window.open() calls ───────────────
+    Route::get('visits/{visit}/receipt-preview', [ReceiptController::class, 'preview']);
+
     Route::middleware('auth:sanctum')->group(function () {
 
         // ── Shared (admin + receptionist) ──────────────────────────────────────
@@ -50,7 +53,6 @@ Route::middleware([
         // Visits & POS — both roles
         Route::post('visits/{visit}/pay', [VisitController::class, 'pay']);
         Route::post('visits/{visit}/print-receipt', [ReceiptController::class, 'print']);
-        Route::get('visits/{visit}/receipt-preview', [ReceiptController::class, 'preview']);
         Route::apiResource('visits', VisitController::class);
 
         // Inventory list & stock-out for POS usage — both roles

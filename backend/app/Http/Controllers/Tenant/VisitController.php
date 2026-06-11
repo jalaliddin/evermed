@@ -141,6 +141,8 @@ class VisitController extends Controller
             'payment_method' => 'required|in:cash,card,insurance',
         ]);
 
+        $wasAlreadyPaid = $visit->is_paid;
+
         $visit->update([
             'paid_amount' => $request->paid_amount,
             'payment_method' => $request->payment_method,
@@ -151,8 +153,12 @@ class VisitController extends Controller
             $visit->appointment?->update(['status' => 'completed']);
         }
 
-        event(new PaymentReceived($visit));
+        $updated = $visit->fresh();
 
-        return response()->json($visit->fresh());
+        if (!$wasAlreadyPaid && $updated->is_paid) {
+            event(new PaymentReceived($updated));
+        }
+
+        return response()->json($updated);
     }
 }

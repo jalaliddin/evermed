@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendTelegramNotification;
 use App\Models\InventoryItem;
 use App\Models\InventoryTransaction;
 use App\Models\Notification;
+use App\Models\TelegramSetting;
 use Illuminate\Http\Request;
 
 class InventoryController extends Controller
@@ -92,11 +94,25 @@ class InventoryController extends Controller
         $fresh = $inventory->fresh();
         if ($fresh->quantity <= $fresh->min_quantity) {
             Notification::create([
-                'type' => 'low_stock',
+                'type'  => 'low_stock',
                 'title' => 'Inventar kam qoldi',
-                'body' => "{$fresh->name}: {$fresh->quantity} {$fresh->unit} qoldi",
-                'data' => ['item_id' => $fresh->id],
+                'body'  => "{$fresh->name}: {$fresh->quantity} {$fresh->unit} qoldi",
+                'data'  => ['item_id' => $fresh->id],
             ]);
+
+            // Telegram notification if low_stock is enabled
+            $tg = TelegramSetting::first();
+            if ($tg && $tg->is_active && $tg->bot_token) {
+                $notifs = $tg->notifications ?? [];
+                if ($notifs['low_stock'] ?? true) {
+                    $msg  = "⚠️ <b>INVENTAR KAM QOLDI</b>\n";
+                    $msg .= "━━━━━━━━━━━━━━━━━\n";
+                    $msg .= "📦 Mahsulot: {$fresh->name}\n";
+                    $msg .= "📉 Qoldi: {$fresh->quantity} {$fresh->unit}\n";
+                    $msg .= "🔔 Minimal: {$fresh->min_quantity} {$fresh->unit}";
+                    SendTelegramNotification::dispatch(tenant('id'), $msg);
+                }
+            }
         }
 
         return response()->json($fresh);

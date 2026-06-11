@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Models\TelegramSetting;
 use App\Models\TenantSetting;
+use App\Models\TenantUserEmail;
 use App\Models\User;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\URL;
 
 class SettingsController extends Controller
 {
@@ -99,6 +101,29 @@ class SettingsController extends Controller
         return response()->json($result);
     }
 
+    public function setWebhook()
+    {
+        $settings = TelegramSetting::first();
+        if (!$settings || !$settings->bot_token) {
+            return response()->json(['success' => false, 'message' => 'Bot token kiritilmagan'], 422);
+        }
+
+        $tenantId    = tenant('id');
+        $webhookUrl  = rtrim(config('app.url'), '/') . "/api/webhook/telegram/{$tenantId}";
+
+        $telegram = new TelegramService();
+        $result   = $telegram->setWebhook($settings->bot_token, $webhookUrl);
+
+        return response()->json(array_merge($result, ['webhook_url' => $webhookUrl]));
+    }
+
+    public function webhookUrl()
+    {
+        $tenantId = tenant('id');
+        $url = rtrim(config('app.url'), '/') . "/api/webhook/telegram/{$tenantId}";
+        return response()->json(['webhook_url' => $url]);
+    }
+
     public function printer()
     {
         $tenantId = tenant('id');
@@ -141,14 +166,22 @@ class SettingsController extends Controller
     public function storeUser(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|email|unique:users',
+            'name'     => 'required|string',
+            'email'    => 'required|email|unique:users',
             'password' => 'required|min:6',
-            'role' => 'required|in:admin,doctor,nurse,cashier,receptionist',
-            'phone' => 'nullable|string',
+            'role'     => 'required|in:admin,doctor,nurse,cashier,receptionist',
+            'phone'    => 'nullable|string',
         ]);
 
-        return response()->json(User::create($validated), 201);
+        $user = User::create($validated);
+
+        // Central email → tenant mapping for slug-less login
+        TenantUserEmail::updateOrCreate([
+            'tenant_id' => tenant('id'),
+            'email'     => $validated['email'],
+        ]);
+
+        return response()->json($user, 201);
     }
 
     public function updateUser(Request $request, User $user)
@@ -171,6 +204,10 @@ class SettingsController extends Controller
 
     public function destroyUser(User $user)
     {
+        TenantUserEmail::where('tenant_id', tenant('id'))
+            ->where('email', $user->email)
+            ->delete();
+
         $user->delete();
         return response()->json(['message' => 'Deleted']);
     }

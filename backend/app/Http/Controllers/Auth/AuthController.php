@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\Tenant;
+use App\Models\TenantUserEmail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -17,12 +18,14 @@ class AuthController extends Controller
         $request->validate([
             'email'    => 'required|email',
             'password' => 'required',
-            'tenant'   => 'nullable|string',
         ]);
 
-        // Super admin login (central DB, no tenant needed)
-        $admin = Admin::where('email', $request->email)->first();
-        if ($admin && Hash::check($request->password, $admin->password)) {
+        $email    = $request->input('email');
+        $password = $request->input('password');
+
+        // Super admin (central DB)
+        $admin = Admin::where('email', $email)->first();
+        if ($admin && Hash::check($password, $admin->password)) {
             $token = $admin->createToken('admin-token', ['role:super_admin'])->plainTextToken;
             return response()->json([
                 'token' => $token,
@@ -31,20 +34,18 @@ class AuthController extends Controller
             ]);
         }
 
-        // Tenant user login — requires tenant slug
-        $tenantSlug = $request->tenant
-            ?? $request->header('X-Tenant');
-
-        if (!$tenantSlug) {
+        // Find which tenant this email belongs to
+        $map = TenantUserEmail::where('email', $email)->first();
+        if (!$map) {
             throw ValidationException::withMessages([
-                'tenant' => ['Klinika slugini kiriting.'],
+                'email' => ['Email yoki parol noto\'g\'ri.'],
             ]);
         }
 
-        $tenant = Tenant::find($tenantSlug);
+        $tenant = Tenant::find($map->tenant_id);
         if (!$tenant) {
             throw ValidationException::withMessages([
-                'tenant' => ['Klinika topilmadi.'],
+                'email' => ['Klinika topilmadi.'],
             ]);
         }
 
@@ -52,9 +53,9 @@ class AuthController extends Controller
         tenancy()->initialize($tenant);
 
         try {
-            $user = User::where('email', $request->email)->first();
+            $user = User::where('email', $email)->first();
 
-            if ($user && Hash::check($request->password, $user->password)) {
+            if ($user && Hash::check($password, $user->password)) {
                 if (!$user->is_active) {
                     throw ValidationException::withMessages([
                         'email' => ['Foydalanuvchi bloklangan.'],
@@ -64,9 +65,9 @@ class AuthController extends Controller
                 $token = $user->createToken('user-token', ['role:' . $user->role])->plainTextToken;
                 $result = [
                     'token'     => $token,
-                    'user'      => array_merge($user->load('doctor')->toArray(), ['tenant_id' => $tenantSlug]),
+                    'user'      => array_merge($user->load('doctor')->toArray(), ['tenant_id' => $map->tenant_id]),
                     'type'      => 'tenant',
-                    'tenant_id' => $tenantSlug,
+                    'tenant_id' => $map->tenant_id,
                 ];
             }
         } finally {

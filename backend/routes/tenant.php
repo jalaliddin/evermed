@@ -83,6 +83,8 @@ Route::middleware([
             Route::get('telegram', [SettingsController::class, 'telegram']);
             Route::put('telegram', [SettingsController::class, 'updateTelegram']);
             Route::post('telegram/test', [SettingsController::class, 'testTelegram']);
+            Route::post('telegram/set-webhook', [SettingsController::class, 'setWebhook']);
+            Route::get('telegram/webhook-url', [SettingsController::class, 'webhookUrl']);
             Route::get('printer', [SettingsController::class, 'printer']);
             Route::put('printer', [SettingsController::class, 'updatePrinter']);
             Route::get('users', [SettingsController::class, 'users']);

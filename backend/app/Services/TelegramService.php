@@ -30,6 +30,19 @@ class TelegramService
         }
     }
 
+    public function setWebhook(string $token, string $webhookUrl): array
+    {
+        try {
+            $res = $this->http->post("https://api.telegram.org/bot{$token}/setWebhook", [
+                'json' => ['url' => $webhookUrl],
+            ]);
+            $data = json_decode($res->getBody(), true);
+            return ['success' => $data['ok'] ?? false, 'message' => $data['description'] ?? ''];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
     public function testConnection(string $token, string $chatId): array
     {
         try {

@@ -4,7 +4,11 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\TenantController;
 use App\Http\Controllers\Admin\SubscriptionController;
+use App\Http\Controllers\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
+
+// Telegram webhook (public, called by Telegram servers)
+Route::post('webhook/telegram/{tenantId}', [TelegramWebhookController::class, 'handle']);
 
 // Auth (central)
 Route::prefix('auth')->group(function () {

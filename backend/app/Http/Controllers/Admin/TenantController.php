@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
+use App\Models\TenantUserEmail;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -63,6 +64,11 @@ class TenantController extends Controller
 
             User::create($adminData);
         });
+
+        // Central email → tenant mapping for login lookup
+        TenantUserEmail::updateOrCreate(
+            ['tenant_id' => $tenant->id, 'email' => $validated['admin_email']]
+        );
 
         return response()->json($tenant, 201);
     }

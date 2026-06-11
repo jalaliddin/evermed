@@ -55,7 +55,7 @@ class TenantDemoSeeder extends Seeder
                 [
                     'name' => $du['name'],
                     'password' => Hash::make('password'),
-                    'role' => 'doctor',
+                    'role' => 'admin',
                     'is_active' => true,
                 ]
             );

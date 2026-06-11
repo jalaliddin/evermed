@@ -38,7 +38,15 @@
       "Bash(xargs cat)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8094/api/auth/login -X POST)",
       "Bash(docker cp *)",
-      "Bash(curl -s http://localhost:8094/)"
+      "Bash(curl -s http://localhost:8094/)",
+      "Bash(curl -s http://localhost:8094/api/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"test@test.com\",\"password\":\"wrong\"}')",
+      "Bash(sudo ufw status)",
+      "Bash(sudo iptables -L INPUT -n --line-numbers)",
+      "Bash(ufw status *)",
+      "Bash(iptables -L INPUT -n)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

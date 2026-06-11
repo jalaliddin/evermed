@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\InventoryTransaction;
 use App\Models\Visit;
@@ -21,6 +20,13 @@ class ReportController extends Controller
         $totalRevenue = Visit::whereBetween('visited_at', [$from, $to])->where('is_paid', true)->sum('paid_amount');
         $totalPatients = Visit::whereBetween('visited_at', [$from, $to])->distinct('patient_id')->count('patient_id');
         $totalDiscount = Visit::whereBetween('visited_at', [$from, $to])->sum('discount');
+        $totalVisits = Visit::whereBetween('visited_at', [$from, $to])->count();
+        $paidVisits = Visit::whereBetween('visited_at', [$from, $to])->where('is_paid', true)->count();
+        $paymentBreakdown = Visit::whereBetween('visited_at', [$from, $to])
+            ->where('is_paid', true)
+            ->selectRaw('payment_method, COUNT(*) as count, SUM(paid_amount) as total')
+            ->groupBy('payment_method')
+            ->get();
 
         $daily = Visit::where('is_paid', true)
             ->whereBetween('visited_at', [$from, $to])
@@ -33,11 +39,15 @@ class ReportController extends Controller
 
         return response()->json([
             'stats' => [
-                'total_revenue' => $totalRevenue,
-                'total_patients' => $totalPatients,
-                'total_discount' => $totalDiscount,
-                'avg_per_day' => $daily->count() > 0 ? round($totalRevenue / $daily->count()) : 0,
-                'max_day' => $maxDay,
+                'total_revenue'      => $totalRevenue,
+                'total_patients'     => $totalPatients,
+                'total_discount'     => $totalDiscount,
+                'total_visits'       => $totalVisits,
+                'paid_visits'        => $paidVisits,
+                'unpaid_visits'      => $totalVisits - $paidVisits,
+                'payment_breakdown'  => $paymentBreakdown,
+                'avg_per_day'        => $daily->count() > 0 ? round($totalRevenue / $daily->count()) : 0,
+                'max_day'            => $maxDay,
             ],
             'daily' => $daily,
         ]);
@@ -101,8 +111,8 @@ class ReportController extends Controller
             ->latest()
             ->paginate(20);
 
-        $topUsed = InventoryTransaction::where('type', 'out')
-            ->whereBetween('created_at', [$from, $to])
+        $topUsed = InventoryTransaction::where('inventory_transactions.type', 'out')
+            ->whereBetween('inventory_transactions.created_at', [$from, $to])
             ->join('inventory_items', 'inventory_transactions.item_id', '=', 'inventory_items.id')
             ->selectRaw('inventory_items.name, SUM(inventory_transactions.quantity) as total_used')
             ->groupBy('inventory_items.name')
@@ -141,6 +151,9 @@ class ReportController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.' . $request->type, $data)
             ->setPaper('a4', 'landscape');
 
-        return $pdf->download("{$filename}.pdf");
+        return response($pdf->output(), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$filename}.pdf\"",
+        ]);
     }
 }

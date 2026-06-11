@@ -14,7 +14,7 @@ class SendTelegramNotification implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    public int $tries = 1;
 
     public function __construct(
         private string $tenantId,
@@ -23,16 +23,20 @@ class SendTelegramNotification implements ShouldQueue
 
     public function handle(TelegramService $telegram): void
     {
-        tenancy()->initialize($this->tenantId);
-
-        $settings = TelegramSetting::first();
-        if (!$settings || !$settings->is_active || !$settings->bot_token) {
-            tenancy()->end();
-            return;
+        // QueueTenancyBootstrapper already initializes tenant context automatically.
+        // Only manual-initialize when running in central context (e.g. artisan commands).
+        if (!tenancy()->initialized) {
+            tenancy()->initialize($this->tenantId);
+            $manuallyInitialized = true;
         }
 
-        $telegram->sendMessage($settings->group_chat_id, $settings->bot_token, $this->message);
+        $settings = TelegramSetting::first();
+        if ($settings && $settings->is_active && $settings->bot_token) {
+            $telegram->sendMessage($settings->group_chat_id, $settings->bot_token, $this->message);
+        }
 
-        tenancy()->end();
+        if ($manuallyInitialized ?? false) {
+            tenancy()->end();
+        }
     }
 }

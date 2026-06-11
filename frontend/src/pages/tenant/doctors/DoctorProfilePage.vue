@@ -20,7 +20,6 @@
           </v-chip>
           <v-list density="compact" class="text-left mt-3">
             <v-list-item prepend-icon="mdi-phone" :subtitle="doctor.user?.phone || '—'" />
-            <v-list-item prepend-icon="mdi-email" :subtitle="doctor.user?.email" />
             <v-list-item prepend-icon="mdi-door" :subtitle="'Xona: ' + (doctor.room_number || '—')" />
             <v-list-item prepend-icon="mdi-cash" :subtitle="formatMoney(doctor.consultation_price)" />
           </v-list>
@@ -48,20 +47,57 @@
 
       <v-col cols="12" md="8">
         <v-card rounded="xl">
-          <v-card-title class="pa-4 pb-0">Bugungi qabullar</v-card-title>
-          <v-data-table
-            :headers="apptHeaders"
-            :items="appointments"
-            :loading="loading"
-            density="compact"
-            :items-per-page="10"
-          >
-            <template #item.scheduled_at="{ item }">{{ formatDateTime(item.scheduled_at) }}</template>
-            <template #item.patient="{ item }">{{ item.patient?.full_name }}</template>
-            <template #item.status="{ item }">
-              <v-chip :color="statusColor(item.status)" size="small" label>{{ statusLabel(item.status) }}</v-chip>
-            </template>
-          </v-data-table>
+          <v-tabs v-model="tab" bg-color="transparent" class="px-2 pt-2">
+            <v-tab value="appointments">Bugungi qabullar</v-tab>
+            <v-tab value="visits">Tashriflar tarixi</v-tab>
+          </v-tabs>
+          <v-divider />
+
+          <!-- Today's Appointments -->
+          <v-window v-model="tab">
+            <v-window-item value="appointments">
+              <v-data-table
+                :headers="apptHeaders"
+                :items="appointments"
+                :loading="loading"
+                density="compact"
+                :items-per-page="10"
+              >
+                <template #item.scheduled_at="{ item }">{{ formatDateTime(item.scheduled_at) }}</template>
+                <template #item.patient="{ item }">{{ item.patient?.full_name }}</template>
+                <template #item.status="{ item }">
+                  <v-chip :color="statusColor(item.status)" size="small" label>{{ statusLabel(item.status) }}</v-chip>
+                </template>
+              </v-data-table>
+            </v-window-item>
+
+            <!-- Visits History -->
+            <v-window-item value="visits">
+              <div class="pa-3 d-flex gap-2 flex-wrap">
+                <v-text-field v-model="visitFrom" type="date" label="Dan" variant="outlined" density="compact" hide-details style="max-width: 160px;" @change="loadVisits" />
+                <v-text-field v-model="visitTo" type="date" label="Gacha" variant="outlined" density="compact" hide-details style="max-width: 160px;" @change="loadVisits" />
+              </div>
+              <v-data-table
+                :headers="visitHeaders"
+                :items="visits"
+                :loading="visitsLoading"
+                density="compact"
+                :items-per-page="15"
+              >
+                <template #item.visited_at="{ item }">{{ formatDateTime(item.visited_at) }}</template>
+                <template #item.patient="{ item }">{{ item.patient?.full_name }}</template>
+                <template #item.total_amount="{ item }">{{ formatMoney(item.total_amount) }}</template>
+                <template #item.is_paid="{ item }">
+                  <v-chip :color="item.is_paid ? 'success' : 'warning'" size="small" label>
+                    {{ item.is_paid ? "To'landi" : "Kutilmoqda" }}
+                  </v-chip>
+                </template>
+                <template #item.actions="{ item }">
+                  <v-btn icon="mdi-eye" size="x-small" variant="text" :to="`/visits/${item.id}`" />
+                </template>
+              </v-data-table>
+            </v-window-item>
+          </v-window>
         </v-card>
       </v-col>
     </v-row>
@@ -79,6 +115,12 @@ const doctor = ref(null)
 const report = ref({ stats: {} })
 const appointments = ref([])
 const loading = ref(false)
+const tab = ref('appointments')
+
+const visits = ref([])
+const visitsLoading = ref(false)
+const visitFrom = ref(dayjs().startOf('month').format('YYYY-MM-DD'))
+const visitTo   = ref(dayjs().format('YYYY-MM-DD'))
 
 const apptHeaders = [
   { title: 'Vaqt', key: 'scheduled_at' },
@@ -87,11 +129,28 @@ const apptHeaders = [
   { title: 'Holat', key: 'status' },
 ]
 
+const visitHeaders = [
+  { title: 'Sana', key: 'visited_at' },
+  { title: 'Bemor', key: 'patient' },
+  { title: 'Jami', key: 'total_amount' },
+  { title: "To'lov", key: 'is_paid' },
+  { title: '', key: 'actions', sortable: false },
+]
+
 function formatMoney(v) { return v ? Number(v).toLocaleString('uz-UZ') + " so'm" : '0' }
 function formatMillions(v) { return v ? (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : (v/1000).toFixed(0)+'K') : '0' }
-function formatDateTime(d) { return d ? dayjs(d).format('DD.MM HH:mm') : '' }
+function formatDateTime(d) { return d ? dayjs(d).format('DD.MM.YYYY HH:mm') : '' }
 function statusColor(s) { return {pending:'warning',confirmed:'info',in_progress:'primary',completed:'success',cancelled:'error'}[s]||'grey' }
 function statusLabel(s) { return {pending:'Kutilmoqda',confirmed:'Tasdiqlangan',in_progress:'Qabulda',completed:'Tugadi',cancelled:'Bekor'}[s]||s }
+
+async function loadVisits() {
+  visitsLoading.value = true
+  const res = await tenantApi.get('/visits', {
+    params: { doctor_id: route.params.id, from: visitFrom.value, to: visitTo.value, per_page: 50 }
+  })
+  visits.value = res.data.data || []
+  visitsLoading.value = false
+}
 
 async function load() {
   loading.value = true
@@ -105,6 +164,7 @@ async function load() {
   report.value = rRes.data
   appointments.value = aRes.data.data || []
   loading.value = false
+  loadVisits()
 }
 
 onMounted(load)

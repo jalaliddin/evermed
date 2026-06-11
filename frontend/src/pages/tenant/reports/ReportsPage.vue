@@ -23,6 +23,7 @@
 
     <v-tabs v-model="tab" class="mb-4">
       <v-tab value="financial">Moliya</v-tab>
+      <v-tab value="visits">Tashriflar</v-tab>
       <v-tab value="doctors">Shifokorlar</v-tab>
       <v-tab value="services">Xizmatlar</v-tab>
       <v-tab value="inventory">Inventar</v-tab>
@@ -89,6 +90,95 @@
           <v-data-table :headers="dailyHeaders" :items="fin.daily || []" :loading="loading" density="comfortable">
             <template #item.revenue="{ item }">{{ formatMoney(item.revenue) }}</template>
             <template #item.discount="{ item }">{{ formatMoney(item.discount) }}</template>
+          </v-data-table>
+        </v-card>
+      </v-window-item>
+
+      <!-- ── VISITS TAB ── -->
+      <v-window-item value="visits">
+        <v-row class="mb-4">
+          <v-col cols="6" sm="3">
+            <v-card rounded="xl" color="primary" variant="tonal">
+              <v-card-text class="pa-4">
+                <div class="text-caption mb-1">Jami tashriflar</div>
+                <div class="text-h5 font-weight-bold">{{ fin.stats?.total_visits ?? 0 }}</div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="6" sm="3">
+            <v-card rounded="xl" color="success" variant="tonal">
+              <v-card-text class="pa-4">
+                <div class="text-caption mb-1">To'langan</div>
+                <div class="text-h5 font-weight-bold">{{ fin.stats?.paid_visits ?? 0 }}</div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="6" sm="3">
+            <v-card rounded="xl" color="warning" variant="tonal">
+              <v-card-text class="pa-4">
+                <div class="text-caption mb-1">To'lanmagan</div>
+                <div class="text-h5 font-weight-bold">{{ fin.stats?.unpaid_visits ?? 0 }}</div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="6" sm="3">
+            <v-card rounded="xl" color="secondary" variant="tonal">
+              <v-card-text class="pa-4">
+                <div class="text-caption mb-1">Daromad</div>
+                <div class="text-h5 font-weight-bold">{{ formatMoney(fin.stats?.total_revenue) }}</div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <!-- Payment method breakdown -->
+        <v-row class="mb-4">
+          <v-col cols="12" md="5">
+            <v-card rounded="xl">
+              <v-card-title class="pa-4 pb-0">To'lov usullari</v-card-title>
+              <v-card-text>
+                <div v-for="pm in (fin.stats?.payment_breakdown || [])" :key="pm.payment_method" class="d-flex justify-space-between align-center mb-3">
+                  <div class="d-flex align-center gap-2">
+                    <v-icon :color="pm.payment_method === 'cash' ? 'success' : pm.payment_method === 'card' ? 'primary' : 'secondary'" size="20">
+                      {{ pm.payment_method === 'cash' ? 'mdi-cash' : pm.payment_method === 'card' ? 'mdi-credit-card' : 'mdi-shield-check' }}
+                    </v-icon>
+                    <span>{{ pm.payment_method === 'cash' ? 'Naqd' : pm.payment_method === 'card' ? 'Karta' : "Sug'urta" }}</span>
+                  </div>
+                  <div class="text-right">
+                    <div class="font-weight-bold">{{ formatMoney(pm.total) }}</div>
+                    <div class="text-caption text-medium-emphasis">{{ pm.count }} ta tashrif</div>
+                  </div>
+                </div>
+                <div v-if="!fin.stats?.payment_breakdown?.length" class="text-center py-4 text-medium-emphasis text-body-2">Ma'lumot yo'q</div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="7">
+            <v-card rounded="xl">
+              <v-card-title class="pa-4 pb-0">Kunlik tashriflar</v-card-title>
+              <v-data-table :headers="dailyVisitHeaders" :items="fin.daily || []" :loading="loading" density="comfortable">
+                <template #item.revenue="{ item }">{{ formatMoney(item.revenue) }}</template>
+              </v-data-table>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <!-- Visits list -->
+        <v-card rounded="xl">
+          <v-card-title class="pa-4 pb-0">Tashriflar ro'yxati</v-card-title>
+          <v-data-table :headers="visitListHeaders" :items="visitsList" :loading="loading" density="comfortable" :items-per-page="20">
+            <template #item.visited_at="{ item }">{{ formatDate(item.visited_at) }}</template>
+            <template #item.patient="{ item }">{{ item.patient?.full_name }}</template>
+            <template #item.doctor="{ item }">
+              Dr. {{ item.doctor?.user?.name }}
+              <span v-if="item.doctor?.specialization" class="text-caption text-medium-emphasis">({{ item.doctor.specialization }})</span>
+            </template>
+            <template #item.total_amount="{ item }">{{ formatMoney(item.total_amount) }}</template>
+            <template #item.is_paid="{ item }">
+              <v-chip :color="item.is_paid ? 'success' : 'warning'" size="small" label>
+                {{ item.is_paid ? "To'landi" : "Kutilmoqda" }}
+              </v-chip>
+            </template>
           </v-data-table>
         </v-card>
       </v-window-item>
@@ -226,6 +316,7 @@ const svcCategories   = ref([])
 const invTransactions = ref([])
 const topUsed         = ref([])
 const lowStock        = ref([])
+const visitsList      = ref([])
 
 // Charts
 const finChart    = ref({ series: [{ name: 'Daromad', data: [] }], options: buildBarOptions([]) })
@@ -292,6 +383,19 @@ const lowStockHeaders = [
   { title: 'Min',      key: 'min_quantity', width: 70 },
   { title: 'Holat',    key: 'status',   width: 90 },
 ]
+const dailyVisitHeaders = [
+  { title: 'Sana',     key: 'date',     width: 110 },
+  { title: 'Bemorlar', key: 'patients', width: 100 },
+  { title: 'Daromad',  key: 'revenue',  width: 150 },
+  { title: 'Chegirma', key: 'discount', width: 130 },
+]
+const visitListHeaders = [
+  { title: 'Sana',     key: 'visited_at', width: 140 },
+  { title: 'Bemor',    key: 'patient' },
+  { title: 'Shifokor', key: 'doctor' },
+  { title: 'Summa',    key: 'total_amount', width: 140 },
+  { title: "To'lov",   key: 'is_paid', width: 110 },
+]
 
 function formatMoney(v) { return v ? Number(v).toLocaleString('uz-UZ') + " so'm" : '0' }
 function formatDate(d)  { return d ? dayjs(d).format('DD.MM.YYYY HH:mm') : '' }
@@ -307,12 +411,13 @@ async function loadAll() {
   loading.value = true
   const params = { from: dateFrom.value, to: dateTo.value }
   try {
-    const [finRes, docRes, svcRes, invRes, lowRes] = await Promise.all([
+    const [finRes, docRes, svcRes, invRes, lowRes, visRes] = await Promise.all([
       tenantApi.get('/reports/financial', { params }),
       tenantApi.get('/reports/doctors',   { params }),
       tenantApi.get('/reports/services',  { params }),
       tenantApi.get('/reports/inventory', { params }),
       tenantApi.get('/inventory/low-stock'),
+      tenantApi.get('/visits', { params: { ...params, per_page: 100 } }),
     ])
 
     // Financial
@@ -341,6 +446,9 @@ async function loadAll() {
     invTransactions.value = invRes.data.transactions?.data || invRes.data.transactions || []
     topUsed.value         = invRes.data.topUsed || []
     lowStock.value        = lowRes.data || []
+
+    // Visits
+    visitsList.value = visRes.data.data || []
 
   } catch (e) {
     console.error('Reports load error:', e)

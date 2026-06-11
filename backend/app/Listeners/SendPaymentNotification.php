@@ -12,10 +12,13 @@ class SendPaymentNotification
         $visit = $event->visit->load(['patient', 'doctor.user', 'services.service']);
 
         $services = $visit->services->map(fn($vs) => $vs->service->name)->implode(', ');
+        $doctor   = $visit->doctor;
+        $doctorLine = $doctor ? "Dr. {$doctor->user->name}" . ($doctor->specialization ? " ({$doctor->specialization})" : '') : '—';
 
         $message = "<b>💰 TO'LOV QABUL QILINDI</b>\n";
         $message .= "━━━━━━━━━━━━━━━━━\n";
         $message .= "Bemor: {$visit->patient->full_name}\n";
+        $message .= "Shifokor: {$doctorLine}\n";
         $message .= "Xizmatlar: {$services}\n";
         $message .= "Summa: " . number_format($visit->paid_amount, 0, '.', ' ') . " so'm\n";
         $message .= "Usul: " . ucfirst($visit->payment_method) . "\n";

@@ -25,6 +25,7 @@ echo "[entrypoint] MySQL ready."
 mkdir -p storage/framework/{sessions,views,cache} \
          storage/app/public \
          storage/logs \
+         storage/fonts \
          bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 

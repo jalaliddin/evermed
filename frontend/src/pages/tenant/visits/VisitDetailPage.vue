@@ -141,7 +141,8 @@ async function doPay() {
 }
 
 function printReceipt() {
-  window.open(`/api/tenant/visits/${visit.value.id}/receipt-preview`, '_blank')
+  const tenantId = localStorage.getItem('tenant_id')
+  window.open(`/api/tenant/visits/${visit.value.id}/receipt-preview?tenant=${tenantId}`, '_blank')
 }
 
 onMounted(load)

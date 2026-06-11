@@ -145,11 +145,16 @@ function statusLabel(s) { return {pending:'Kutilmoqda',confirmed:'Tasdiqlangan',
 
 async function loadVisits() {
   visitsLoading.value = true
-  const res = await tenantApi.get('/visits', {
-    params: { doctor_id: route.params.id, from: visitFrom.value, to: visitTo.value, per_page: 50 }
-  })
-  visits.value = res.data.data || []
-  visitsLoading.value = false
+  try {
+    const res = await tenantApi.get('/visits', {
+      params: { doctor_id: route.params.id, from: visitFrom.value, to: visitTo.value, per_page: 50 }
+    })
+    visits.value = res.data.data || []
+  } catch (e) {
+    console.error('Visits load error:', e)
+  } finally {
+    visitsLoading.value = false
+  }
 }
 
 async function load() {

@@ -14,22 +14,23 @@ class ReportController extends Controller
 {
     public function financial(Request $request)
     {
-        $from = $request->from ?? now()->startOfMonth()->toDateString();
-        $to = $request->to ?? now()->toDateString();
+        $from    = $request->from ?? now()->startOfMonth()->toDateString();
+        $to      = $request->to   ?? now()->toDateString();
+        $toEnd   = $to . ' 23:59:59';
 
-        $totalRevenue = Visit::whereBetween('visited_at', [$from, $to])->where('is_paid', true)->sum('paid_amount');
-        $totalPatients = Visit::whereBetween('visited_at', [$from, $to])->distinct('patient_id')->count('patient_id');
-        $totalDiscount = Visit::whereBetween('visited_at', [$from, $to])->sum('discount');
-        $totalVisits = Visit::whereBetween('visited_at', [$from, $to])->count();
-        $paidVisits = Visit::whereBetween('visited_at', [$from, $to])->where('is_paid', true)->count();
-        $paymentBreakdown = Visit::whereBetween('visited_at', [$from, $to])
+        $totalRevenue = Visit::whereBetween('visited_at', [$from, $toEnd])->where('is_paid', true)->sum('paid_amount');
+        $totalPatients = Visit::whereBetween('visited_at', [$from, $toEnd])->distinct('patient_id')->count('patient_id');
+        $totalDiscount = Visit::whereBetween('visited_at', [$from, $toEnd])->sum('discount');
+        $totalVisits = Visit::whereBetween('visited_at', [$from, $toEnd])->count();
+        $paidVisits = Visit::whereBetween('visited_at', [$from, $toEnd])->where('is_paid', true)->count();
+        $paymentBreakdown = Visit::whereBetween('visited_at', [$from, $toEnd])
             ->where('is_paid', true)
             ->selectRaw('payment_method, COUNT(*) as count, SUM(paid_amount) as total')
             ->groupBy('payment_method')
             ->get();
 
         $daily = Visit::where('is_paid', true)
-            ->whereBetween('visited_at', [$from, $to])
+            ->whereBetween('visited_at', [$from, $toEnd])
             ->selectRaw('DATE(visited_at) as date, COUNT(DISTINCT patient_id) as patients, SUM(paid_amount) as revenue, SUM(discount) as discount')
             ->groupBy('date')
             ->orderBy('date')
@@ -55,13 +56,14 @@ class ReportController extends Controller
 
     public function doctors(Request $request)
     {
-        $from = $request->from ?? now()->startOfMonth()->toDateString();
-        $to = $request->to ?? now()->toDateString();
+        $from  = $request->from ?? now()->startOfMonth()->toDateString();
+        $to    = $request->to   ?? now()->toDateString();
+        $toEnd = $to . ' 23:59:59';
 
         $doctors = Doctor::with('user')
             ->when($request->doctor_id, fn($q) => $q->where('id', $request->doctor_id))
-            ->withCount(['visits as visits_count' => fn($q) => $q->whereBetween('visited_at', [$from, $to])])
-            ->withSum(['visits as revenue' => fn($q) => $q->whereBetween('visited_at', [$from, $to])->where('is_paid', true)], 'paid_amount')
+            ->withCount(['visits as visits_count' => fn($q) => $q->whereBetween('visited_at', [$from, $toEnd])])
+            ->withSum(['visits as revenue' => fn($q) => $q->whereBetween('visited_at', [$from, $toEnd])->where('is_paid', true)], 'paid_amount')
             ->get()
             ->map(fn($d) => [
                 'doctor' => $d,
@@ -75,13 +77,14 @@ class ReportController extends Controller
 
     public function services(Request $request)
     {
-        $from = $request->from ?? now()->startOfMonth()->toDateString();
-        $to = $request->to ?? now()->toDateString();
+        $from  = $request->from ?? now()->startOfMonth()->toDateString();
+        $to    = $request->to   ?? now()->toDateString();
+        $toEnd = $to . ' 23:59:59';
 
         $services = DB::table('visit_services')
             ->join('services', 'visit_services.service_id', '=', 'services.id')
             ->join('visits', 'visit_services.visit_id', '=', 'visits.id')
-            ->whereBetween('visits.visited_at', [$from, $to])
+            ->whereBetween('visits.visited_at', [$from, $toEnd])
             ->selectRaw('services.name, COUNT(*) as count, SUM(visit_services.total) as revenue')
             ->groupBy('services.name')
             ->orderByDesc('revenue')
@@ -92,7 +95,7 @@ class ReportController extends Controller
             ->join('services', 'visit_services.service_id', '=', 'services.id')
             ->join('service_categories', 'services.category_id', '=', 'service_categories.id')
             ->join('visits', 'visit_services.visit_id', '=', 'visits.id')
-            ->whereBetween('visits.visited_at', [$from, $to])
+            ->whereBetween('visits.visited_at', [$from, $toEnd])
             ->selectRaw('service_categories.name, SUM(visit_services.total) as revenue')
             ->groupBy('service_categories.name')
             ->orderByDesc('revenue')
@@ -103,16 +106,17 @@ class ReportController extends Controller
 
     public function inventory(Request $request)
     {
-        $from = $request->from ?? now()->startOfMonth()->toDateString();
-        $to = $request->to ?? now()->toDateString();
+        $from  = $request->from ?? now()->startOfMonth()->toDateString();
+        $to    = $request->to   ?? now()->toDateString();
+        $toEnd = $to . ' 23:59:59';
 
         $transactions = InventoryTransaction::with(['item', 'performer'])
-            ->whereBetween('created_at', [$from, $to])
+            ->whereBetween('created_at', [$from, $toEnd])
             ->latest()
             ->paginate(20);
 
         $topUsed = InventoryTransaction::where('inventory_transactions.type', 'out')
-            ->whereBetween('inventory_transactions.created_at', [$from, $to])
+            ->whereBetween('inventory_transactions.created_at', [$from, $toEnd])
             ->join('inventory_items', 'inventory_transactions.item_id', '=', 'inventory_items.id')
             ->selectRaw('inventory_items.name, SUM(inventory_transactions.quantity) as total_used')
             ->groupBy('inventory_items.name')

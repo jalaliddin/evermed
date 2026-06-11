@@ -17,12 +17,12 @@ class VisitController extends Controller
 {
     public function index(Request $request)
     {
-        $visits = Visit::with(['patient', 'doctor.user'])
+        $visits = Visit::with(['patient', 'doctor', 'doctor.user'])
             ->when($request->patient_id, fn($q) => $q->where('patient_id', $request->patient_id))
             ->when($request->doctor_id, fn($q) => $q->where('doctor_id', $request->doctor_id))
             ->when($request->is_paid !== null, fn($q) => $q->where('is_paid', $request->boolean('is_paid')))
-            ->when($request->from, fn($q) => $q->where('visited_at', '>=', $request->from))
-            ->when($request->to, fn($q) => $q->where('visited_at', '<=', $request->to))
+            ->when($request->from, fn($q) => $q->whereDate('visited_at', '>=', $request->from))
+            ->when($request->to, fn($q) => $q->whereDate('visited_at', '<=', $request->to))
             ->latest('visited_at')
             ->paginate($request->per_page ?? 15);
 

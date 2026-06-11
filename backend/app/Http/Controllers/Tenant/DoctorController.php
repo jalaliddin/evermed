@@ -98,20 +98,21 @@ class DoctorController extends Controller
 
     public function report(Request $request, Doctor $doctor)
     {
-        $from = $request->from ?? now()->startOfMonth()->toDateString();
-        $to = $request->to ?? now()->toDateString();
+        $from  = $request->from ?? now()->startOfMonth()->toDateString();
+        $to    = $request->to   ?? now()->toDateString();
+        $toEnd = $to . ' 23:59:59';
 
         $totalPatients = $doctor->visits()
-            ->whereBetween('visited_at', [$from, $to])
+            ->whereBetween('visited_at', [$from, $toEnd])
             ->distinct('patient_id')->count('patient_id');
 
         $totalRevenue = $doctor->visits()
-            ->whereBetween('visited_at', [$from, $to])
+            ->whereBetween('visited_at', [$from, $toEnd])
             ->where('is_paid', true)
             ->sum('paid_amount');
 
         $totalAppointments = $doctor->appointments()
-            ->whereBetween('scheduled_at', [$from, $to])
+            ->whereBetween('scheduled_at', [$from, $toEnd])
             ->count();
 
         return response()->json([

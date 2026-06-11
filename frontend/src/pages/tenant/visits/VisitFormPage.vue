@@ -276,7 +276,8 @@ async function saveVisit(printReceipt) {
     snackbar.value = { show: true, text: 'Tashrif saqlandi', color: 'success' }
 
     if (printReceipt) {
-      window.open(`/api/tenant/visits/${visitId}/receipt-preview`, '_blank')
+      const tenantId = localStorage.getItem('tenant_id')
+      window.open(`/api/tenant/visits/${visitId}/receipt-preview?tenant=${tenantId}`, '_blank')
     }
 
     setTimeout(() => router.push(`/visits/${visitId}`), 600)

@@ -411,13 +411,12 @@ async function loadAll() {
   loading.value = true
   const params = { from: dateFrom.value, to: dateTo.value }
   try {
-    const [finRes, docRes, svcRes, invRes, lowRes, visRes] = await Promise.all([
+    const [finRes, docRes, svcRes, invRes, lowRes] = await Promise.all([
       tenantApi.get('/reports/financial', { params }),
       tenantApi.get('/reports/doctors',   { params }),
       tenantApi.get('/reports/services',  { params }),
       tenantApi.get('/reports/inventory', { params }),
       tenantApi.get('/inventory/low-stock'),
-      tenantApi.get('/visits', { params: { ...params, per_page: 100 } }),
     ])
 
     // Financial
@@ -447,14 +446,19 @@ async function loadAll() {
     topUsed.value         = invRes.data.topUsed || []
     lowStock.value        = lowRes.data || []
 
-    // Visits
-    visitsList.value = visRes.data.data || []
-
   } catch (e) {
     console.error('Reports load error:', e)
     snackbar.value = { show: true, text: 'Ma\'lumot yuklanmadi', color: 'error' }
   } finally {
     loading.value = false
+  }
+
+  // Load visits separately so a failure here doesn't break other tabs
+  try {
+    const visRes = await tenantApi.get('/visits', { params: { from: dateFrom.value, to: dateTo.value, per_page: 100 } })
+    visitsList.value = visRes.data.data || []
+  } catch (e) {
+    console.error('Visits load error:', e)
   }
 }
 

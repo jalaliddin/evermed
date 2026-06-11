@@ -116,22 +116,31 @@ class ReportController extends Controller
     public function export(Request $request)
     {
         $request->validate([
-            'type' => 'required|in:financial,doctors,services,inventory',
+            'type'   => 'required|in:financial,doctors,services,inventory',
             'format' => 'required|in:excel,pdf',
-            'from' => 'nullable|date',
-            'to' => 'nullable|date',
+            'from'   => 'nullable|date',
+            'to'     => 'nullable|date',
         ]);
 
         $data = $this->{$request->type}($request)->getData(true);
 
+        // Flatten paginated inventory transactions for export
+        if ($request->type === 'inventory' && isset($data['transactions']['data'])) {
+            $data['transactions'] = $data['transactions']['data'];
+        }
+
+        $filename = "hisobot_{$request->type}_" . now()->format('Y-m-d');
+
         if ($request->format === 'excel') {
             return Excel::download(
                 new \App\Exports\ReportExport($request->type, $data),
-                "report_{$request->type}.xlsx"
+                "{$filename}.xlsx"
             );
         }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.' . $request->type, $data);
-        return $pdf->download("report_{$request->type}.pdf");
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.' . $request->type, $data)
+            ->setPaper('a4', 'landscape');
+
+        return $pdf->download("{$filename}.pdf");
     }
 }

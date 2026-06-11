@@ -1,6 +1,5 @@
 <template>
   <div>
-    <!-- Page Title -->
     <div class="d-flex align-center justify-space-between mb-6">
       <div>
         <div class="text-h5 font-weight-bold">Dashboard</div>
@@ -39,6 +38,7 @@
               :options="revenueChart.options"
               :series="revenueChart.series"
             />
+            <div v-else-if="!loading" class="text-center py-10 text-medium-emphasis">Ma'lumot yo'q</div>
             <v-skeleton-loader v-else type="image" height="240" />
           </v-card-text>
         </v-card>
@@ -58,6 +58,7 @@
               :options="serviceChart.options"
               :series="serviceChart.series"
             />
+            <div v-else-if="!loading" class="text-center py-10 text-medium-emphasis">Ma'lumot yo'q</div>
             <v-skeleton-loader v-else type="image" height="240" />
           </v-card-text>
         </v-card>
@@ -66,14 +67,10 @@
 
     <!-- Bottom Row -->
     <v-row>
-      <!-- Today's Appointments -->
       <v-col cols="12" lg="7">
         <v-card rounded="xl">
           <v-card-title class="pa-4 pb-0 d-flex align-center justify-space-between">
-            <div>
-              <v-icon class="mr-2">mdi-calendar-today</v-icon>
-              Bugungi qabullar
-            </div>
+            <div><v-icon class="mr-2">mdi-calendar-today</v-icon>Bugungi qabullar</div>
             <v-btn variant="text" size="small" to="/appointments">Barchasi</v-btn>
           </v-card-title>
           <v-data-table
@@ -85,31 +82,19 @@
             :items-per-page="8"
           >
             <template #item.status="{ item }">
-              <v-chip :color="statusColor(item.status)" size="small" label>
-                {{ statusLabel(item.status) }}
-              </v-chip>
+              <v-chip :color="statusColor(item.status)" size="small" label>{{ statusLabel(item.status) }}</v-chip>
             </template>
-            <template #item.scheduled_at="{ item }">
-              {{ formatTime(item.scheduled_at) }}
-            </template>
-            <template #item.patient="{ item }">
-              {{ item.patient?.full_name }}
-            </template>
-            <template #item.doctor="{ item }">
-              Dr. {{ item.doctor?.user?.name }}
-            </template>
+            <template #item.scheduled_at="{ item }">{{ formatTime(item.scheduled_at) }}</template>
+            <template #item.patient="{ item }">{{ item.patient?.full_name }}</template>
+            <template #item.doctor="{ item }">Dr. {{ item.doctor?.user?.name }}</template>
           </v-data-table>
         </v-card>
       </v-col>
 
-      <!-- Recent Notifications -->
       <v-col cols="12" lg="5">
         <v-card rounded="xl" height="100%">
           <v-card-title class="pa-4 pb-0 d-flex align-center justify-space-between">
-            <div>
-              <v-icon class="mr-2">mdi-bell-outline</v-icon>
-              Bildirishnomalar
-            </div>
+            <div><v-icon class="mr-2">mdi-bell-outline</v-icon>Bildirishnomalar</div>
             <v-btn variant="text" size="small" to="/notifications">Barchasi</v-btn>
           </v-card-title>
           <v-list lines="two" class="pa-2">
@@ -141,52 +126,62 @@
 import { ref, computed, onMounted } from 'vue'
 import { tenantApi } from '@/plugins/axios'
 import dayjs from 'dayjs'
+import 'dayjs/locale/uz'
 
-const loading = ref(false)
+dayjs.locale('uz')
+
+const loading           = ref(false)
 const todayAppointments = ref([])
-const notifications = ref([])
-const dashStats = ref({})
+const notifications     = ref([])
+const dashStats         = ref({})
+const revenueChart      = ref({ series: [{ name: 'Daromad', data: [] }], options: buildRevenueOptions([]) })
+const serviceChart      = ref({ series: [], options: buildServiceOptions([]) })
 
 const today = computed(() => dayjs().format('DD MMMM YYYY, dddd'))
 
 const stats = computed(() => [
-  { label: "Bugungi bemorlar", value: dashStats.value.today_patients ?? '-', icon: 'mdi-account-group', color: 'primary', iconColor: 'primary' },
-  { label: "Bugungi qabullar", value: dashStats.value.today_appointments ?? '-', icon: 'mdi-calendar-check', color: 'secondary', iconColor: 'secondary' },
-  { label: "Bugungi daromad", value: formatMoney(dashStats.value.today_revenue), icon: 'mdi-cash-multiple', color: 'success', iconColor: 'success' },
-  { label: "Kam inventar", value: dashStats.value.low_stock_count ?? 0, icon: 'mdi-package-variant-closed-remove', color: dashStats.value.low_stock_count > 0 ? 'error' : 'info', iconColor: dashStats.value.low_stock_count > 0 ? 'error' : 'info' },
+  { label: 'Bugungi bemorlar',   value: dashStats.value.today_patients    ?? '—', icon: 'mdi-account-group',                color: 'primary',  iconColor: 'primary' },
+  { label: 'Bugungi qabullar',   value: dashStats.value.today_appointments ?? '—', icon: 'mdi-calendar-check',              color: 'secondary', iconColor: 'secondary' },
+  { label: 'Bugungi daromad',    value: formatMoney(dashStats.value.today_revenue), icon: 'mdi-cash-multiple',              color: 'success',   iconColor: 'success' },
+  {
+    label: 'Kam inventar',
+    value: dashStats.value.low_stock_count ?? 0,
+    icon: 'mdi-package-variant-closed-remove',
+    color: dashStats.value.low_stock_count > 0 ? 'error' : 'info',
+    iconColor: dashStats.value.low_stock_count > 0 ? 'error' : 'info',
+  },
 ])
 
-const revenueChart = ref({
-  series: [{ name: "Daromad", data: [] }],
-  options: {
-    chart: { type: 'area', toolbar: { show: false }, sparkline: { enabled: false } },
+const appointmentHeaders = [
+  { title: 'Vaqt',    key: 'scheduled_at', width: 72 },
+  { title: 'Bemor',   key: 'patient' },
+  { title: 'Shifokor',key: 'doctor' },
+  { title: 'Holat',   key: 'status', width: 120 },
+]
+
+function buildRevenueOptions(categories) {
+  return {
+    chart: { type: 'area', toolbar: { show: false } },
     colors: ['#1565C0'],
     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
     stroke: { curve: 'smooth', width: 3 },
-    xaxis: { categories: [], labels: { style: { colors: '#90A4AE' } } },
+    xaxis: { categories, labels: { style: { colors: '#90A4AE' } } },
     yaxis: { labels: { formatter: v => (v / 1000).toFixed(0) + 'K' } },
-    tooltip: { y: { formatter: v => v.toLocaleString('uz-UZ') + " so'm" } },
+    tooltip: { y: { formatter: v => Number(v).toLocaleString('uz-UZ') + " so'm" } },
     grid: { borderColor: '#F0F0F0' },
-  },
-})
+  }
+}
 
-const serviceChart = ref({
-  series: [],
-  options: {
+function buildServiceOptions(labels) {
+  return {
     chart: { type: 'donut' },
     colors: ['#1565C0', '#00BFA5', '#FF6F00', '#7B1FA2', '#2E7D32'],
-    labels: [],
+    labels,
     legend: { position: 'bottom' },
     plotOptions: { pie: { donut: { size: '65%' } } },
-  },
-})
-
-const appointmentHeaders = [
-  { title: 'Vaqt', key: 'scheduled_at', width: 80 },
-  { title: 'Bemor', key: 'patient' },
-  { title: 'Shifokor', key: 'doctor' },
-  { title: 'Holat', key: 'status', width: 120 },
-]
+    tooltip: { y: { formatter: v => Number(v).toLocaleString('uz-UZ') + " so'm" } },
+  }
+}
 
 function formatMoney(val) {
   if (!val) return '0'
@@ -210,29 +205,29 @@ function notifIcon(t) {
 async function loadDashboard() {
   loading.value = true
   try {
-    const res = await tenantApi.get('/dashboard')
+    const res  = await tenantApi.get('/dashboard')
     const data = res.data
 
-    dashStats.value = data.stats
+    dashStats.value         = data.stats
     todayAppointments.value = data.today_appointments || []
-    notifications.value = data.notifications || []
+    notifications.value     = data.notifications || []
 
-    // Revenue chart
+    // Replace charts reactively (ApexCharts needs new object references)
     if (data.revenue_chart?.length) {
-      revenueChart.value.series[0].data = data.revenue_chart.map(r => r.revenue || 0)
-      revenueChart.value.options = {
-        ...revenueChart.value.options,
-        xaxis: { categories: data.revenue_chart.map(r => dayjs(r.date).format('DD/MM')) },
+      revenueChart.value = {
+        series: [{ name: 'Daromad', data: data.revenue_chart.map(r => Number(r.revenue) || 0) }],
+        options: buildRevenueOptions(data.revenue_chart.map(r => dayjs(r.date).format('DD/MM'))),
       }
     }
 
-    // Services chart
     if (data.services_chart?.length) {
-      serviceChart.value.series = data.services_chart.map(s => parseFloat(s.total) || 0)
-      serviceChart.value.options = { ...serviceChart.value.options, labels: data.services_chart.map(s => s.name) }
+      serviceChart.value = {
+        series:  data.services_chart.map(s => parseFloat(s.total) || 0),
+        options: buildServiceOptions(data.services_chart.map(s => s.name)),
+      }
     }
   } catch (e) {
-    console.error(e)
+    console.error('Dashboard load error:', e)
   } finally {
     loading.value = false
   }

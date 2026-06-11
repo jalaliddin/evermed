@@ -1,14 +1,10 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-6">
+    <div class="d-flex align-center justify-space-between mb-4">
       <div class="text-h5 font-weight-bold">Hisobotlar</div>
-      <div class="d-flex gap-2">
-        <v-btn variant="outlined" prepend-icon="mdi-file-excel" :loading="exporting" @click="exportExcel">Excel</v-btn>
-        <v-btn variant="outlined" prepend-icon="mdi-file-pdf-box" :loading="exporting" @click="exportPdf">PDF</v-btn>
-      </div>
     </div>
 
-    <!-- Filters -->
+    <!-- Date Filters -->
     <v-card rounded="xl" class="mb-4 pa-4">
       <div class="d-flex flex-wrap gap-3 align-center">
         <v-text-field v-model="dateFrom" type="date" label="Dan" variant="outlined" density="compact" hide-details style="max-width: 160px;" />
@@ -18,59 +14,192 @@
           <v-btn @click="setRange('week')">Hafta</v-btn>
           <v-btn @click="setRange('month')">Oy</v-btn>
         </v-btn-group>
-        <v-btn color="primary" :loading="loading" @click="load">Qidirish</v-btn>
+        <v-btn color="primary" :loading="loading" @click="loadAll">Qidirish</v-btn>
+        <v-spacer />
+        <v-btn variant="outlined" prepend-icon="mdi-file-excel" :loading="exporting === 'excel'" @click="doExport('excel')">Excel</v-btn>
+        <v-btn variant="outlined" prepend-icon="mdi-file-pdf-box" :loading="exporting === 'pdf'" @click="doExport('pdf')">PDF</v-btn>
       </div>
     </v-card>
 
-    <!-- Summary Cards -->
-    <v-row class="mb-4">
-      <v-col v-for="stat in stats" :key="stat.key" cols="6" sm="3">
-        <v-card rounded="xl" :color="stat.color" variant="tonal">
-          <v-card-text class="pa-4">
-            <div class="text-caption text-medium-emphasis mb-1">{{ stat.label }}</div>
-            <div class="text-h5 font-weight-bold">{{ stat.value }}</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+    <v-tabs v-model="tab" class="mb-4">
+      <v-tab value="financial">Moliya</v-tab>
+      <v-tab value="doctors">Shifokorlar</v-tab>
+      <v-tab value="services">Xizmatlar</v-tab>
+      <v-tab value="inventory">Inventar</v-tab>
+    </v-tabs>
 
-    <!-- Charts -->
-    <v-row class="mb-4">
-      <v-col cols="12" md="8">
-        <v-card rounded="xl">
+    <v-window v-model="tab">
+
+      <!-- ── FINANCIAL TAB ── -->
+      <v-window-item value="financial">
+        <!-- Summary Cards -->
+        <v-row class="mb-4">
+          <v-col cols="6" sm="3">
+            <v-card rounded="xl" color="success" variant="tonal">
+              <v-card-text class="pa-4">
+                <div class="text-caption mb-1">Daromad</div>
+                <div class="text-h5 font-weight-bold">{{ formatMoney(fin.stats?.total_revenue) }}</div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="6" sm="3">
+            <v-card rounded="xl" color="primary" variant="tonal">
+              <v-card-text class="pa-4">
+                <div class="text-caption mb-1">Bemorlar</div>
+                <div class="text-h5 font-weight-bold">{{ fin.stats?.total_patients ?? 0 }}</div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="6" sm="3">
+            <v-card rounded="xl" color="secondary" variant="tonal">
+              <v-card-text class="pa-4">
+                <div class="text-caption mb-1">Chegirma</div>
+                <div class="text-h5 font-weight-bold">{{ formatMoney(fin.stats?.total_discount) }}</div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+          <v-col cols="6" sm="3">
+            <v-card rounded="xl" color="warning" variant="tonal">
+              <v-card-text class="pa-4">
+                <div class="text-caption mb-1">O'rtacha/kun</div>
+                <div class="text-h5 font-weight-bold">{{ formatMoney(fin.stats?.avg_per_day) }}</div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <!-- Daily Revenue Chart -->
+        <v-card rounded="xl" class="mb-4">
           <v-card-title class="pa-4 pb-0">Kunlik daromad</v-card-title>
           <v-card-text>
-            <apexchart v-if="revenueChart.series[0].data.length" type="bar" :options="revenueChart.options" :series="revenueChart.series" height="250" />
-            <div v-else class="text-center py-8 text-medium-emphasis">Ma'lumot yo'q</div>
+            <apexchart
+              v-if="finChart.series[0].data.length"
+              type="bar"
+              height="260"
+              :options="finChart.options"
+              :series="finChart.series"
+            />
+            <div v-else class="text-center py-10 text-medium-emphasis">Ma'lumot yo'q</div>
           </v-card-text>
         </v-card>
-      </v-col>
-      <v-col cols="12" md="4">
+
+        <!-- Daily table -->
         <v-card rounded="xl">
-          <v-card-title class="pa-4 pb-0">To'lov usullari</v-card-title>
-          <v-card-text>
-            <apexchart v-if="paymentChart.series.length" type="donut" :options="paymentChart.options" :series="paymentChart.series" height="250" />
-            <div v-else class="text-center py-8 text-medium-emphasis">Ma'lumot yo'q</div>
-          </v-card-text>
+          <v-card-title class="pa-4 pb-0">Kunlik tafsilot</v-card-title>
+          <v-data-table :headers="dailyHeaders" :items="fin.daily || []" :loading="loading" density="comfortable">
+            <template #item.revenue="{ item }">{{ formatMoney(item.revenue) }}</template>
+            <template #item.discount="{ item }">{{ formatMoney(item.discount) }}</template>
+          </v-data-table>
         </v-card>
-      </v-col>
-    </v-row>
+      </v-window-item>
 
-    <!-- Top Services -->
-    <v-card rounded="xl" class="mb-4">
-      <v-card-title class="pa-4 pb-0">Top xizmatlar</v-card-title>
-      <v-data-table :headers="svcHeaders" :items="report.topServices || []" :loading="loading" density="compact" :items-per-page="10">
-        <template #item.revenue="{ item }">{{ formatMoney(item.revenue) }}</template>
-      </v-data-table>
-    </v-card>
+      <!-- ── DOCTORS TAB ── -->
+      <v-window-item value="doctors">
+        <v-card rounded="xl">
+          <v-card-title class="pa-4 pb-0">Shifokorlar natijalari</v-card-title>
+          <v-data-table :headers="docHeaders" :items="doctors" :loading="loading" density="comfortable">
+            <template #item.name="{ item }">
+              <div class="font-weight-medium">Dr. {{ item.doctor?.user?.name }}</div>
+              <div class="text-caption text-medium-emphasis">{{ item.doctor?.specialty }}</div>
+            </template>
+            <template #item.revenue="{ item }">{{ formatMoney(item.revenue) }}</template>
+            <template #item.avg_check="{ item }">{{ formatMoney(item.avg_check) }}</template>
+          </v-data-table>
+        </v-card>
+      </v-window-item>
 
-    <!-- Top Doctors -->
-    <v-card rounded="xl">
-      <v-card-title class="pa-4 pb-0">Shifokorlar natijalari</v-card-title>
-      <v-data-table :headers="docHeaders" :items="report.topDoctors || []" :loading="loading" density="compact" :items-per-page="10">
-        <template #item.revenue="{ item }">{{ formatMoney(item.revenue) }}</template>
-      </v-data-table>
-    </v-card>
+      <!-- ── SERVICES TAB ── -->
+      <v-window-item value="services">
+        <v-row>
+          <v-col cols="12" md="7">
+            <v-card rounded="xl">
+              <v-card-title class="pa-4 pb-0">Top xizmatlar</v-card-title>
+              <v-data-table :headers="svcHeaders" :items="services" :loading="loading" density="comfortable">
+                <template #item.revenue="{ item }">{{ formatMoney(item.revenue) }}</template>
+              </v-data-table>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="5">
+            <v-card rounded="xl">
+              <v-card-title class="pa-4 pb-0">Kategoriyalar</v-card-title>
+              <v-card-text>
+                <apexchart
+                  v-if="svcCatChart.series.length"
+                  type="donut"
+                  height="260"
+                  :options="svcCatChart.options"
+                  :series="svcCatChart.series"
+                />
+                <div v-else class="text-center py-10 text-medium-emphasis">Ma'lumot yo'q</div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-window-item>
+
+      <!-- ── INVENTORY TAB ── -->
+      <v-window-item value="inventory">
+        <v-row class="mb-4">
+          <v-col cols="12" md="6">
+            <v-card rounded="xl">
+              <v-card-title class="pa-4 pb-0">Eng ko'p ishlatilganlar</v-card-title>
+              <v-data-table :headers="topUsedHeaders" :items="topUsed" :loading="loading" density="comfortable" :items-per-page="8">
+                <template #item.total_used="{ item }">
+                  <span class="font-weight-bold">{{ item.total_used }}</span>
+                </template>
+              </v-data-table>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-card rounded="xl" class="mb-4">
+              <v-card-text class="pa-4">
+                <div class="d-flex justify-space-around text-center">
+                  <div>
+                    <div class="text-h4 font-weight-bold text-success">{{ invStats.totalIn }}</div>
+                    <div class="text-caption text-medium-emphasis">Jami kirim</div>
+                  </div>
+                  <v-divider vertical />
+                  <div>
+                    <div class="text-h4 font-weight-bold text-warning">{{ invStats.totalOut }}</div>
+                    <div class="text-caption text-medium-emphasis">Jami chiqim</div>
+                  </div>
+                  <v-divider vertical />
+                  <div>
+                    <div class="text-h4 font-weight-bold text-primary">{{ invTransactions.length }}</div>
+                    <div class="text-caption text-medium-emphasis">Operatsiya</div>
+                  </div>
+                </div>
+              </v-card-text>
+            </v-card>
+            <v-card rounded="xl">
+              <v-card-title class="pa-4 pb-0">Inventar holati (kritik)</v-card-title>
+              <v-data-table :headers="lowStockHeaders" :items="lowStock" :loading="loading" density="compact" :items-per-page="6">
+                <template #item.status="{ item }">
+                  <v-chip :color="item.quantity <= item.min_quantity ? 'error' : 'warning'" size="small" label>
+                    {{ item.quantity <= item.min_quantity ? 'Kritik' : 'Kam' }}
+                  </v-chip>
+                </template>
+              </v-data-table>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <!-- Transactions table -->
+        <v-card rounded="xl">
+          <v-card-title class="pa-4 pb-0">Kirim/Chiqim tarixi</v-card-title>
+          <v-data-table :headers="txHeaders" :items="invTransactions" :loading="loading" density="comfortable">
+            <template #item.type="{ item }">
+              <v-chip :color="item.type === 'in' ? 'success' : 'warning'" size="small" label>
+                {{ item.type === 'in' ? 'Kirim' : 'Chiqim' }}
+              </v-chip>
+            </template>
+            <template #item.item_name="{ item }">{{ item.item?.name }}</template>
+            <template #item.performer="{ item }">{{ item.performer?.name || '—' }}</template>
+            <template #item.created_at="{ item }">{{ formatDate(item.created_at) }}</template>
+          </v-data-table>
+        </v-card>
+      </v-window-item>
+    </v-window>
 
     <v-snackbar v-model="snackbar.show" :color="snackbar.color">{{ snackbar.text }}</v-snackbar>
   </div>
@@ -80,105 +209,169 @@
 import { ref, computed, onMounted } from 'vue'
 import { tenantApi } from '@/plugins/axios'
 import dayjs from 'dayjs'
-import VueApexCharts from 'vue3-apexcharts'
-const apexchart = VueApexCharts
 
-const loading = ref(false)
-const exporting = ref(false)
-const dateFrom = ref(dayjs().startOf('month').format('YYYY-MM-DD'))
-const dateTo = ref(dayjs().format('YYYY-MM-DD'))
-const report = ref({})
+const loading  = ref(false)
+const exporting = ref('')
+const tab      = ref('financial')
 const snackbar = ref({ show: false, text: '', color: 'success' })
+
+const dateFrom = ref(dayjs().startOf('month').format('YYYY-MM-DD'))
+const dateTo   = ref(dayjs().format('YYYY-MM-DD'))
+
+// Data
+const fin             = ref({ stats: {}, daily: [] })
+const doctors         = ref([])
+const services        = ref([])
+const svcCategories   = ref([])
+const invTransactions = ref([])
+const topUsed         = ref([])
+const lowStock        = ref([])
+
+// Charts
+const finChart    = ref({ series: [{ name: 'Daromad', data: [] }], options: buildBarOptions([]) })
+const svcCatChart = ref({ series: [], options: buildDonutOptions([]) })
+
+function buildBarOptions(categories) {
+  return {
+    chart: { toolbar: { show: false } },
+    colors: ['#1565C0'],
+    xaxis: { categories, labels: { style: { colors: '#90A4AE' } } },
+    yaxis: { labels: { formatter: v => (v / 1000).toFixed(0) + 'K' } },
+    tooltip: { y: { formatter: v => Number(v).toLocaleString('uz-UZ') + " so'm" } },
+  }
+}
+
+function buildDonutOptions(labels) {
+  return {
+    chart: { type: 'donut' },
+    colors: ['#1565C0', '#00BFA5', '#FF6F00', '#7B1FA2', '#2E7D32', '#F44336'],
+    labels,
+    legend: { position: 'bottom' },
+    tooltip: { y: { formatter: v => Number(v).toLocaleString('uz-UZ') + " so'm" } },
+  }
+}
+
+const invStats = computed(() => {
+  const totalIn  = invTransactions.value.filter(t => t.type === 'in').reduce((s, t) => s + Number(t.quantity), 0)
+  const totalOut = invTransactions.value.filter(t => t.type === 'out').reduce((s, t) => s + Number(t.quantity), 0)
+  return { totalIn: totalIn.toFixed(0), totalOut: totalOut.toFixed(0) }
+})
+
+// Table headers
+const dailyHeaders = [
+  { title: 'Sana',     key: 'date',     width: 110 },
+  { title: 'Bemorlar', key: 'patients', width: 100 },
+  { title: 'Daromad',  key: 'revenue',  width: 150 },
+  { title: 'Chegirma', key: 'discount', width: 130 },
+]
+const docHeaders = [
+  { title: 'Shifokor',     key: 'name' },
+  { title: 'Tashriflar',   key: 'visits_count', width: 110 },
+  { title: 'Daromad',      key: 'revenue',      width: 150 },
+  { title: "O'rta chek",   key: 'avg_check',    width: 130 },
+]
+const svcHeaders = [
+  { title: 'Xizmat',     key: 'name' },
+  { title: 'Tashriflar', key: 'count',   width: 110 },
+  { title: 'Daromad',    key: 'revenue', width: 150 },
+]
+const txHeaders = [
+  { title: 'Sana',       key: 'created_at', width: 130 },
+  { title: 'Mahsulot',   key: 'item_name' },
+  { title: 'Tur',        key: 'type',       width: 90 },
+  { title: 'Miqdor',     key: 'quantity',   width: 90 },
+  { title: 'Kim',        key: 'performer',  width: 130 },
+]
+const topUsedHeaders = [
+  { title: 'Mahsulot', key: 'name' },
+  { title: "Jami ishlatildi", key: 'total_used', width: 150 },
+]
+const lowStockHeaders = [
+  { title: 'Mahsulot', key: 'name' },
+  { title: 'Qoldi',    key: 'quantity', width: 80 },
+  { title: 'Min',      key: 'min_quantity', width: 70 },
+  { title: 'Holat',    key: 'status',   width: 90 },
+]
+
+function formatMoney(v) { return v ? Number(v).toLocaleString('uz-UZ') + " so'm" : '0' }
+function formatDate(d)  { return d ? dayjs(d).format('DD.MM.YYYY HH:mm') : '' }
 
 function setRange(r) {
   if (r === 'today') { dateFrom.value = dayjs().format('YYYY-MM-DD'); dateTo.value = dayjs().format('YYYY-MM-DD') }
-  else if (r === 'week') { dateFrom.value = dayjs().startOf('week').format('YYYY-MM-DD'); dateTo.value = dayjs().format('YYYY-MM-DD') }
+  else if (r === 'week')  { dateFrom.value = dayjs().startOf('week').format('YYYY-MM-DD'); dateTo.value = dayjs().format('YYYY-MM-DD') }
   else if (r === 'month') { dateFrom.value = dayjs().startOf('month').format('YYYY-MM-DD'); dateTo.value = dayjs().format('YYYY-MM-DD') }
-  load()
+  loadAll()
 }
 
-function formatMoney(v) { return v ? Number(v).toLocaleString('uz-UZ') + " so'm" : '0' }
-
-const stats = computed(() => [
-  { key: 'revenue', label: 'Daromad', value: formatMoney(report.value.total_revenue), color: 'success' },
-  { key: 'visits', label: 'Tashriflar', value: report.value.total_visits || 0, color: 'primary' },
-  { key: 'patients', label: 'Bemorlar', value: report.value.unique_patients || 0, color: 'secondary' },
-  { key: 'avg', label: "O'rta chek", value: formatMoney(report.value.avg_check), color: 'warning' },
-])
-
-const revenueChart = computed(() => ({
-  options: {
-    chart: { toolbar: { show: false } },
-    xaxis: { categories: (report.value.daily || []).map(d => d.date) },
-    colors: ['#1565C0'],
-  },
-  series: [{ name: 'Daromad', data: (report.value.daily || []).map(d => d.revenue) }],
-}))
-
-const paymentChart = computed(() => ({
-  options: {
-    labels: (report.value.paymentMethods || []).map(p => p.method),
-    colors: ['#1565C0', '#00BFA5', '#FF6B6B'],
-    legend: { position: 'bottom' },
-  },
-  series: (report.value.paymentMethods || []).map(p => Number(p.total)),
-}))
-
-const svcHeaders = [
-  { title: 'Xizmat', key: 'name' },
-  { title: 'Tashriflar', key: 'visits_count', width: 100 },
-  { title: 'Daromad', key: 'revenue', width: 150 },
-]
-const docHeaders = [
-  { title: 'Shifokor', key: 'name' },
-  { title: 'Tashriflar', key: 'visits_count', width: 100 },
-  { title: 'Daromad', key: 'revenue', width: 150 },
-]
-
-async function load() {
+async function loadAll() {
   loading.value = true
+  const params = { from: dateFrom.value, to: dateTo.value }
   try {
-    const params = { from: dateFrom.value, to: dateTo.value }
-    const [finRes, svcRes, docRes] = await Promise.all([
+    const [finRes, docRes, svcRes, invRes, lowRes] = await Promise.all([
       tenantApi.get('/reports/financial', { params }),
-      tenantApi.get('/reports/services', { params }),
-      tenantApi.get('/reports/doctors', { params }),
+      tenantApi.get('/reports/doctors',   { params }),
+      tenantApi.get('/reports/services',  { params }),
+      tenantApi.get('/reports/inventory', { params }),
+      tenantApi.get('/inventory/low-stock'),
     ])
-    const fin = finRes.data
-    report.value = {
-      total_revenue: fin.stats?.total_revenue,
-      total_visits: fin.daily?.reduce((s, d) => s + (d.patients || 0), 0),
-      unique_patients: fin.stats?.total_patients,
-      avg_check: fin.stats?.avg_per_day,
-      daily: fin.daily || [],
-      paymentMethods: [],
-      topServices: svcRes.data.services || [],
-      topDoctors: (docRes.data.doctors || []).map(d => ({ name: `Dr. ${d.doctor?.user?.name}`, visits_count: d.visits_count, revenue: d.revenue })),
+
+    // Financial
+    fin.value = finRes.data
+    if (fin.value.daily?.length) {
+      finChart.value = {
+        series:  [{ name: 'Daromad', data: fin.value.daily.map(d => Number(d.revenue) || 0) }],
+        options: buildBarOptions(fin.value.daily.map(d => d.date)),
+      }
     }
-  } finally { loading.value = false }
+
+    // Doctors
+    doctors.value = docRes.data.doctors || []
+
+    // Services
+    services.value     = svcRes.data.services   || []
+    svcCategories.value = svcRes.data.categories || []
+    if (svcCategories.value.length) {
+      svcCatChart.value = {
+        series:  svcCategories.value.map(c => Number(c.revenue) || 0),
+        options: buildDonutOptions(svcCategories.value.map(c => c.name)),
+      }
+    }
+
+    // Inventory
+    invTransactions.value = invRes.data.transactions?.data || invRes.data.transactions || []
+    topUsed.value         = invRes.data.topUsed || []
+    lowStock.value        = lowRes.data || []
+
+  } catch (e) {
+    console.error('Reports load error:', e)
+    snackbar.value = { show: true, text: 'Ma\'lumot yuklanmadi', color: 'error' }
+  } finally {
+    loading.value = false
+  }
 }
 
-async function exportExcel() {
-  exporting.value = true
+async function doExport(format) {
+  const typeMap = { financial: 'financial', doctors: 'doctors', services: 'services', inventory: 'inventory' }
+  const type = typeMap[tab.value] || 'financial'
+  exporting.value = format
   try {
-    const res = await tenantApi.get('/reports/export', { params: { from: dateFrom.value, to: dateTo.value, type: 'financial', format: 'excel' }, responseType: 'blob' })
+    const res = await tenantApi.get('/reports/export', {
+      params: { from: dateFrom.value, to: dateTo.value, type, format },
+      responseType: 'blob',
+    })
+    const ext = format === 'excel' ? 'xlsx' : 'pdf'
     const url = URL.createObjectURL(res.data)
-    const a = document.createElement('a'); a.href = url; a.download = `report_${dateFrom.value}_${dateTo.value}.xlsx`; a.click()
+    const a   = document.createElement('a')
+    a.href     = url
+    a.download = `hisobot_${type}_${dateFrom.value}_${dateTo.value}.${ext}`
+    a.click()
     URL.revokeObjectURL(url)
-  } catch { snackbar.value = { show: true, text: 'Xatolik', color: 'error' } }
-  finally { exporting.value = false }
+  } catch {
+    snackbar.value = { show: true, text: 'Export xatoligi', color: 'error' }
+  } finally {
+    exporting.value = ''
+  }
 }
 
-async function exportPdf() {
-  exporting.value = true
-  try {
-    const res = await tenantApi.get('/reports/export', { params: { from: dateFrom.value, to: dateTo.value, type: 'financial', format: 'pdf' }, responseType: 'blob' })
-    const url = URL.createObjectURL(res.data)
-    window.open(url, '_blank')
-    URL.revokeObjectURL(url)
-  } catch { snackbar.value = { show: true, text: 'Xatolik', color: 'error' } }
-  finally { exporting.value = false }
-}
-
-onMounted(load)
+onMounted(loadAll)
 </script>

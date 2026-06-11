@@ -95,14 +95,11 @@ const headers = [
 
 const roleItems = [
   { title: 'Admin', value: 'admin' },
-  { title: 'Shifokor', value: 'doctor' },
-  { title: 'Hamshira', value: 'nurse' },
-  { title: 'Kassir', value: 'cashier' },
   { title: 'Registrator', value: 'receptionist' },
 ]
 
-function roleColor(r) { return { admin: 'error', doctor: 'primary', nurse: 'info', cashier: 'success', receptionist: 'secondary' }[r] || 'grey' }
-function roleLabel(r) { return { admin: 'Admin', doctor: 'Shifokor', nurse: 'Hamshira', cashier: 'Kassir', receptionist: 'Registrator' }[r] || r }
+function roleColor(r) { return { admin: 'error', receptionist: 'secondary' }[r] || 'grey' }
+function roleLabel(r) { return { admin: 'Admin', receptionist: 'Registrator' }[r] || r }
 
 async function load() {
   loading.value = true

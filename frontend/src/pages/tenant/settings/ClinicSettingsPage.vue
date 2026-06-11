@@ -103,6 +103,18 @@ async function load() {
 async function save() {
   saving.value = true
   try {
+    // Upload logo first if a new file is selected
+    const file = Array.isArray(logoFile.value) ? logoFile.value[0] : logoFile.value
+    if (file) {
+      const fd = new FormData()
+      fd.append('logo', file)
+      const logoRes = await tenantApi.post('/settings/clinic/logo', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      logoPreview.value = logoRes.data.logo
+      logoFile.value = null
+    }
+
     await tenantApi.put('/settings/clinic', form)
     snackbar.value = { show: true, text: 'Saqlandi', color: 'success' }
   } catch {

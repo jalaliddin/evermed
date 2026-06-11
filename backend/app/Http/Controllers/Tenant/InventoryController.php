@@ -17,8 +17,8 @@ class InventoryController extends Controller
         $items = InventoryItem::query()
             ->when($request->search, fn($q) => $q->where('name', 'like', "%{$request->search}%"))
             ->when($request->category, fn($q) => $q->where('category', $request->category))
-            ->when($request->status === 'low', fn($q) => $q->whereColumn('quantity', '<=', DB::raw('min_quantity * 1.5')))
-            ->when($request->status === 'critical', fn($q) => $q->whereColumn('quantity', '<=', 'min_quantity'))
+            ->when($request->status === 'low',      fn($q) => $q->whereRaw('quantity <= min_quantity * 1.5'))
+            ->when($request->status === 'critical', fn($q) => $q->whereRaw('quantity <= min_quantity'))
             ->paginate($request->per_page ?? 20);
 
         return response()->json($items);
@@ -122,9 +122,12 @@ class InventoryController extends Controller
     {
         $transactions = InventoryTransaction::with(['item', 'performer'])
             ->when($request->item_id, fn($q) => $q->where('item_id', $request->item_id))
-            ->when($request->type, fn($q) => $q->where('type', $request->type))
+            ->when($request->type,    fn($q) => $q->where('type', $request->type))
+            ->when($request->from,    fn($q) => $q->whereDate('created_at', '>=', $request->from))
+            ->when($request->to,      fn($q) => $q->whereDate('created_at', '<=', $request->to))
+            ->when($request->search,  fn($q) => $q->whereHas('item', fn($qi) => $qi->where('name', 'like', "%{$request->search}%")))
             ->latest()
-            ->paginate(20);
+            ->paginate($request->per_page ?? 30);
 
         return response()->json($transactions);
     }
@@ -132,7 +135,7 @@ class InventoryController extends Controller
     public function lowStock()
     {
         return response()->json(
-            InventoryItem::whereColumn('quantity', '<=', \DB::raw('min_quantity * 1.5'))->get()
+            InventoryItem::whereRaw('quantity <= min_quantity * 1.5')->get()
         );
     }
 }

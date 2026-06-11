@@ -15,7 +15,7 @@ use App\Http\Controllers\Tenant\SettingsController;
 use App\Http\Controllers\Tenant\VisitController;
 use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByRequestData;
-use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
+
 
 Route::middleware([
     'api',
@@ -23,74 +23,98 @@ Route::middleware([
 ])->prefix('api/tenant')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
+
+        // ── Shared (admin + receptionist) ──────────────────────────────────────
+
         // Dashboard
         Route::get('dashboard', [DashboardController::class, 'index']);
 
-        // Patients
+        // Patients — full CRUD for both roles
         Route::get('patients/{patient}/visits', [PatientController::class, 'visits']);
         Route::get('patients/{patient}/stats', [PatientController::class, 'stats']);
         Route::apiResource('patients', PatientController::class);
 
-        // Doctors
-        Route::get('doctors/{doctor}/report', [DoctorController::class, 'report']);
-        Route::get('doctors/{doctor}/appointments', [DoctorController::class, 'appointments']);
-        Route::apiResource('doctors', DoctorController::class);
+        // Doctors — read-only for receptionist (to select doctor in POS)
+        Route::get('doctors', [DoctorController::class, 'index']);
+        Route::get('doctors/{doctor}', [DoctorController::class, 'show']);
 
-        // Services & Categories
+        // Services — read-only for receptionist (to select services in POS)
         Route::get('service-categories', [ServiceController::class, 'categories']);
-        Route::post('service-categories', [ServiceController::class, 'storeCategory']);
-        Route::put('service-categories/{serviceCategory}', [ServiceController::class, 'updateCategory']);
-        Route::delete('service-categories/{serviceCategory}', [ServiceController::class, 'destroyCategory']);
-        Route::apiResource('services', ServiceController::class)->except(['show']);
+        Route::get('services', [ServiceController::class, 'index']);
 
-        // Appointments
+        // Appointments — both roles
         Route::get('appointments/available-slots', [AppointmentController::class, 'availableSlots']);
         Route::patch('appointments/{appointment}/status', [AppointmentController::class, 'updateStatus']);
         Route::apiResource('appointments', AppointmentController::class);
 
-        // Visits
+        // Visits & POS — both roles
         Route::post('visits/{visit}/pay', [VisitController::class, 'pay']);
         Route::post('visits/{visit}/print-receipt', [ReceiptController::class, 'print']);
         Route::get('visits/{visit}/receipt-preview', [ReceiptController::class, 'preview']);
         Route::apiResource('visits', VisitController::class);
 
-        // Inventory
-        Route::get('inventory/transactions', [InventoryController::class, 'transactions']);
+        // Inventory list & stock-out for POS usage — both roles
+        Route::get('inventory', [InventoryController::class, 'index']);
         Route::get('inventory/low-stock', [InventoryController::class, 'lowStock']);
-        Route::post('inventory/{inventory}/stock-in', [InventoryController::class, 'stockIn']);
         Route::post('inventory/{inventory}/stock-out', [InventoryController::class, 'stockOut']);
-        Route::apiResource('inventory', InventoryController::class)->except(['show', 'destroy']);
 
-        // Reports
-        Route::prefix('reports')->group(function () {
-            Route::get('financial', [ReportController::class, 'financial']);
-            Route::get('doctors', [ReportController::class, 'doctors']);
-            Route::get('services', [ReportController::class, 'services']);
-            Route::get('inventory', [ReportController::class, 'inventory']);
-            Route::get('export', [ReportController::class, 'export']);
-        });
-
-        // Notifications
+        // Notifications — both roles
         Route::patch('notifications/read-all', [NotificationController::class, 'readAll']);
         Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
         Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
         Route::get('notifications', [NotificationController::class, 'index']);
 
-        // Settings
-        Route::prefix('settings')->group(function () {
-            Route::get('clinic', [SettingsController::class, 'clinic']);
-            Route::put('clinic', [SettingsController::class, 'updateClinic']);
-            Route::get('telegram', [SettingsController::class, 'telegram']);
-            Route::put('telegram', [SettingsController::class, 'updateTelegram']);
-            Route::post('telegram/test', [SettingsController::class, 'testTelegram']);
-            Route::post('telegram/set-webhook', [SettingsController::class, 'setWebhook']);
-            Route::get('telegram/webhook-url', [SettingsController::class, 'webhookUrl']);
-            Route::get('printer', [SettingsController::class, 'printer']);
-            Route::put('printer', [SettingsController::class, 'updatePrinter']);
-            Route::get('users', [SettingsController::class, 'users']);
-            Route::post('users', [SettingsController::class, 'storeUser']);
-            Route::put('users/{user}', [SettingsController::class, 'updateUser']);
-            Route::delete('users/{user}', [SettingsController::class, 'destroyUser']);
+        // ── Admin only ─────────────────────────────────────────────────────────
+
+        Route::middleware('role:admin')->group(function () {
+
+            // Doctors — full CRUD
+            Route::get('doctors/{doctor}/report', [DoctorController::class, 'report']);
+            Route::get('doctors/{doctor}/appointments', [DoctorController::class, 'appointments']);
+            Route::post('doctors', [DoctorController::class, 'store']);
+            Route::put('doctors/{doctor}', [DoctorController::class, 'update']);
+            Route::delete('doctors/{doctor}', [DoctorController::class, 'destroy']);
+
+            // Services — full CRUD
+            Route::post('service-categories', [ServiceController::class, 'storeCategory']);
+            Route::put('service-categories/{serviceCategory}', [ServiceController::class, 'updateCategory']);
+            Route::delete('service-categories/{serviceCategory}', [ServiceController::class, 'destroyCategory']);
+            Route::post('services', [ServiceController::class, 'store']);
+            Route::put('services/{service}', [ServiceController::class, 'update']);
+            Route::delete('services/{service}', [ServiceController::class, 'destroy']);
+
+            // Inventory — full management + stock-in
+            Route::get('inventory/transactions', [InventoryController::class, 'transactions']);
+            Route::post('inventory/{inventory}/stock-in', [InventoryController::class, 'stockIn']);
+            Route::post('inventory', [InventoryController::class, 'store']);
+            Route::put('inventory/{inventory}', [InventoryController::class, 'update']);
+
+            // Reports
+            Route::prefix('reports')->group(function () {
+                Route::get('financial', [ReportController::class, 'financial']);
+                Route::get('doctors', [ReportController::class, 'doctors']);
+                Route::get('services', [ReportController::class, 'services']);
+                Route::get('inventory', [ReportController::class, 'inventory']);
+                Route::get('export', [ReportController::class, 'export']);
+            });
+
+            // Settings
+            Route::prefix('settings')->group(function () {
+                Route::get('clinic', [SettingsController::class, 'clinic']);
+                Route::put('clinic', [SettingsController::class, 'updateClinic']);
+                Route::post('clinic/logo', [SettingsController::class, 'uploadLogo']);
+                Route::get('telegram', [SettingsController::class, 'telegram']);
+                Route::put('telegram', [SettingsController::class, 'updateTelegram']);
+                Route::post('telegram/test', [SettingsController::class, 'testTelegram']);
+                Route::post('telegram/set-webhook', [SettingsController::class, 'setWebhook']);
+                Route::get('telegram/webhook-url', [SettingsController::class, 'webhookUrl']);
+                Route::get('printer', [SettingsController::class, 'printer']);
+                Route::put('printer', [SettingsController::class, 'updatePrinter']);
+                Route::get('users', [SettingsController::class, 'users']);
+                Route::post('users', [SettingsController::class, 'storeUser']);
+                Route::put('users/{user}', [SettingsController::class, 'updateUser']);
+                Route::delete('users/{user}', [SettingsController::class, 'destroyUser']);
+            });
         });
     });
 });

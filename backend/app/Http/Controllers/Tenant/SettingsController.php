@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
 {
@@ -65,6 +65,29 @@ class SettingsController extends Controller
         }
 
         return response()->json(['message' => 'Updated']);
+    }
+
+    public function uploadLogo(Request $request)
+    {
+        $request->validate([
+            'logo' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        $tenantId = tenant('id');
+        $tenant   = Tenant::find($tenantId);
+
+        // Remove old logo
+        if ($tenant->logo) {
+            $oldPath = str_replace('/storage/', 'public/', $tenant->logo);
+            Storage::delete($oldPath);
+        }
+
+        $path = $request->file('logo')->store("public/tenants/{$tenantId}");
+        $url  = Storage::url($path);
+
+        $tenant->update(['logo' => $url]);
+
+        return response()->json(['logo' => $url]);
     }
 
     public function telegram()
@@ -169,7 +192,7 @@ class SettingsController extends Controller
             'name'     => 'required|string',
             'email'    => 'required|email|unique:users',
             'password' => 'required|min:6',
-            'role'     => 'required|in:admin,doctor,nurse,cashier,receptionist',
+            'role'     => 'required|in:admin,receptionist',
             'phone'    => 'nullable|string',
         ]);
 
@@ -188,7 +211,7 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'name' => 'sometimes|string',
-            'role' => 'sometimes|in:admin,doctor,nurse,cashier,receptionist',
+            'role' => 'sometimes|in:admin,receptionist',
             'phone' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
             'password' => 'nullable|min:6',

@@ -21,13 +21,14 @@ const routes = [
       { path: '/patients/:id', component: () => import('@/pages/tenant/patients/PatientProfilePage.vue') },
       { path: '/patients/:id/edit', component: () => import('@/pages/tenant/patients/PatientFormPage.vue') },
 
-      // Doctors
+      // Doctors (read-only for receptionist)
       { path: '/doctors', component: () => import('@/pages/tenant/doctors/DoctorListPage.vue') },
-      { path: '/doctors/new', component: () => import('@/pages/tenant/doctors/DoctorFormPage.vue') },
       { path: '/doctors/:id', component: () => import('@/pages/tenant/doctors/DoctorProfilePage.vue') },
+      // Admin only
+      { path: '/doctors/new', component: () => import('@/pages/tenant/doctors/DoctorFormPage.vue'), meta: { requiresAdmin: true } },
 
-      // Services
-      { path: '/services', component: () => import('@/pages/tenant/services/ServiceListPage.vue') },
+      // Services (admin only)
+      { path: '/services', component: () => import('@/pages/tenant/services/ServiceListPage.vue'), meta: { requiresAdmin: true } },
 
       // Appointments
       { path: '/appointments', component: () => import('@/pages/tenant/appointments/AppointmentCalendarPage.vue') },
@@ -36,20 +37,20 @@ const routes = [
       { path: '/visits/new', component: () => import('@/pages/tenant/visits/VisitFormPage.vue') },
       { path: '/visits/:id', component: () => import('@/pages/tenant/visits/VisitDetailPage.vue') },
 
-      // Inventory
-      { path: '/inventory', component: () => import('@/pages/tenant/inventory/InventoryListPage.vue') },
+      // Inventory (admin only)
+      { path: '/inventory', component: () => import('@/pages/tenant/inventory/InventoryListPage.vue'), meta: { requiresAdmin: true } },
 
-      // Reports
-      { path: '/reports', component: () => import('@/pages/tenant/reports/ReportsPage.vue') },
+      // Reports (admin only)
+      { path: '/reports', component: () => import('@/pages/tenant/reports/ReportsPage.vue'), meta: { requiresAdmin: true } },
 
       // Notifications
       { path: '/notifications', component: () => import('@/pages/tenant/NotificationsPage.vue') },
 
-      // Settings
-      { path: '/settings/clinic', component: () => import('@/pages/tenant/settings/ClinicSettingsPage.vue') },
-      { path: '/settings/telegram', component: () => import('@/pages/tenant/settings/TelegramSettingsPage.vue') },
-      { path: '/settings/users', component: () => import('@/pages/tenant/settings/UsersSettingsPage.vue') },
-      { path: '/settings/printer', component: () => import('@/pages/tenant/settings/PrinterSettingsPage.vue') },
+      // Settings (admin only)
+      { path: '/settings/clinic',   component: () => import('@/pages/tenant/settings/ClinicSettingsPage.vue'),   meta: { requiresAdmin: true } },
+      { path: '/settings/telegram', component: () => import('@/pages/tenant/settings/TelegramSettingsPage.vue'), meta: { requiresAdmin: true } },
+      { path: '/settings/users',    component: () => import('@/pages/tenant/settings/UsersSettingsPage.vue'),    meta: { requiresAdmin: true } },
+      { path: '/settings/printer',  component: () => import('@/pages/tenant/settings/PrinterSettingsPage.vue'),  meta: { requiresAdmin: true } },
     ],
   },
 
@@ -82,6 +83,7 @@ router.beforeEach((to) => {
   }
   if (to.meta.type === 'admin' && !auth.isAdmin) return '/dashboard/home'
   if (to.meta.type === 'tenant' && auth.isAdmin) return '/admin'
+  if (to.meta.requiresAdmin && auth.user?.role !== 'admin') return '/dashboard/home'
 })
 
 export default router

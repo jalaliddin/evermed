@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class TenantController extends Controller
 {
@@ -61,11 +62,9 @@ class TenantController extends Controller
                 '--path'  => 'database/migrations/tenant',
                 '--force' => true,
             ]);
-
             User::create($adminData);
         });
 
-        // Central email → tenant mapping for login lookup
         TenantUserEmail::updateOrCreate(
             ['tenant_id' => $tenant->id, 'email' => $validated['admin_email']]
         );
@@ -75,30 +74,79 @@ class TenantController extends Controller
 
     public function show(string $id)
     {
-        $tenant = Tenant::with(['subscriptions'])->findOrFail($id);
-        return response()->json($tenant);
+        $tenant = Tenant::with(['subscriptions', 'domains'])->findOrFail($id);
+
+        $adminEmail = null;
+        try {
+            $tenant->run(function () use (&$adminEmail) {
+                $adminEmail = User::where('role', 'admin')->value('email');
+            });
+        } catch (\Exception $e) {}
+
+        return response()->json(array_merge($tenant->toArray(), ['admin_email' => $adminEmail]));
     }
 
     public function update(Request $request, string $id)
     {
         $tenant = Tenant::findOrFail($id);
+
         $validated = $request->validate([
-            'name'    => 'sometimes|string|max:255',
-            'phone'   => 'nullable|string',
-            'address' => 'nullable|string',
-            'status'  => 'sometimes|in:active,trial,suspended',
-            'plan'    => 'nullable|string',
+            'name'        => 'sometimes|string|max:255',
+            'slug'        => ['sometimes', 'string', 'regex:/^[a-z0-9\-]+$/', Rule::unique('tenants', 'slug')->ignore($id)],
+            'phone'       => 'nullable|string',
+            'address'     => 'nullable|string',
+            'status'      => 'sometimes|in:active,trial,suspended',
+            'plan'        => 'nullable|string',
+            'admin_email' => 'nullable|email',
         ]);
 
-        $tenant->update($validated);
-        return response()->json($tenant);
+        // Slug changed → update subdomain record
+        if (isset($validated['slug']) && $validated['slug'] !== $tenant->slug) {
+            $tenant->domains()->delete();
+            $tenant->createDomain(['domain' => $validated['slug'] . '.med.eversoft.uz']);
+        }
+
+        // Admin email changed → update in tenant DB + central mapping
+        if (!empty($validated['admin_email'])) {
+            $newEmail = $validated['admin_email'];
+            $oldEmail = null;
+
+            $tenant->run(function () use ($newEmail, &$oldEmail) {
+                $admin = User::where('role', 'admin')->first();
+                if ($admin) {
+                    $oldEmail = $admin->email;
+                    $admin->update(['email' => $newEmail]);
+                }
+            });
+
+            if ($oldEmail && $oldEmail !== $newEmail) {
+                TenantUserEmail::where('tenant_id', $id)
+                    ->where('email', $oldEmail)
+                    ->update(['email' => $newEmail]);
+            }
+        }
+
+        // Remove virtual field before saving to tenants table
+        $tenantFields = array_diff_key($validated, ['admin_email' => null]);
+        $tenant->update(array_filter($tenantFields, fn($v) => !is_null($v)));
+
+        return response()->json($tenant->fresh());
     }
 
     public function destroy(string $id)
     {
         $tenant = Tenant::findOrFail($id);
+
+        // Clean up central email mappings
+        TenantUserEmail::where('tenant_id', $id)->delete();
+
+        // Delete subdomains
+        $tenant->domains()->delete();
+
+        // Delete tenant — stancl/tenancy drops the tenant DB automatically
         $tenant->delete();
-        return response()->json(['message' => 'Deleted']);
+
+        return response()->json(['message' => "Klinika o'chirildi"]);
     }
 
     public function resetAdminPassword(Request $request, string $id)
@@ -112,7 +160,7 @@ class TenantController extends Controller
 
         $tenant->run(function () use ($request) {
             $user = User::where('email', $request->email)
-                ->whereIn('role', ['admin'])
+                ->where('role', 'admin')
                 ->firstOrFail();
 
             $user->update(['password' => Hash::make($request->password)]);

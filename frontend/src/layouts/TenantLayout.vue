@@ -89,6 +89,23 @@
             <v-badge :content="item.badge" color="error" inline v-if="!rail" />
           </template>
         </v-list-item>
+
+        <template v-if="isAdmin">
+          <v-divider class="my-2" style="border-color: rgba(255,255,255,0.08);" />
+          <v-list-subheader v-if="!rail" style="color: rgba(255,255,255,0.35); font-size:10px; letter-spacing:1px;">SOZLAMALAR</v-list-subheader>
+
+          <v-list-item
+            v-for="item in settingsMenu"
+            :key="item.to"
+            :to="item.to"
+            :prepend-icon="item.icon"
+            :title="item.title"
+            rounded="lg"
+            active-color="white"
+            :active-class="'sidebar-active'"
+            style="margin: 2px 0;"
+          />
+        </template>
       </v-list>
 
       <!-- User Profile at Bottom -->
@@ -194,36 +211,56 @@ const rail = ref(false)
 const search = ref('')
 const snackbar = ref({ show: false, text: '', color: 'success' })
 
+const isAdmin = computed(() => auth.user?.role === 'admin')
+
 const initials = computed(() => {
   const name = auth.user?.name || ''
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 })
 
 const roleLabel = computed(() => {
-  const labels = { admin: 'Admin', doctor: 'Shifokor', nurse: 'Hamshira', cashier: 'Kassir', receptionist: 'Qabulchi' }
+  const labels = { admin: 'Admin', receptionist: 'Registrator' }
   return labels[auth.user?.role] || auth.user?.role
 })
 
 const mainMenu = [
   { to: '/dashboard/home', icon: 'mdi-view-dashboard-outline', title: 'Dashboard' },
-  { to: '/appointments', icon: 'mdi-calendar-check-outline', title: 'Qabullar' },
-  { to: '/patients', icon: 'mdi-account-group-outline', title: 'Bemorlar' },
+  { to: '/appointments',   icon: 'mdi-calendar-check-outline', title: 'Qabullar' },
+  { to: '/patients',       icon: 'mdi-account-group-outline',  title: 'Bemorlar' },
 ]
 
-const clinicMenu = [
-  { to: '/doctors', icon: 'mdi-doctor', title: 'Shifokorlar' },
-  { to: '/services', icon: 'mdi-medical-bag', title: 'Xizmatlar' },
-  { to: '/inventory', icon: 'mdi-package-variant-closed', title: 'Inventar' },
-]
+const clinicMenu = computed(() => {
+  const items = [
+    { to: '/doctors', icon: 'mdi-doctor', title: 'Shifokorlar' },
+  ]
+  if (isAdmin.value) {
+    items.push(
+      { to: '/services',   icon: 'mdi-medical-bag',            title: 'Xizmatlar' },
+      { to: '/inventory',  icon: 'mdi-package-variant-closed', title: 'Inventar' },
+    )
+  }
+  return items
+})
 
-const financeMenu = [
-  { to: '/visits/new', icon: 'mdi-cash-register', title: "To'lovlar & Cheklar" },
-  { to: '/reports', icon: 'mdi-chart-bar', title: 'Hisobotlar' },
-]
+const financeMenu = computed(() => {
+  const items = [
+    { to: '/visits/new', icon: 'mdi-cash-register', title: "To'lovlar & Cheklar" },
+  ]
+  if (isAdmin.value) {
+    items.push({ to: '/reports', icon: 'mdi-chart-bar', title: 'Hisobotlar' })
+  }
+  return items
+})
 
 const systemMenu = [
   { to: '/notifications', icon: 'mdi-bell-outline', title: 'Bildirishnomalar', badge: notifStore.unreadCount || null },
-  { to: '/settings/clinic', icon: 'mdi-cog-outline', title: 'Sozlamalar' },
+]
+
+const settingsMenu = [
+  { to: '/settings/clinic',    icon: 'mdi-hospital-building',  title: 'Klinika' },
+  { to: '/settings/telegram',  icon: 'mdi-send',               title: 'Telegram' },
+  { to: '/settings/users',     icon: 'mdi-account-group',      title: 'Foydalanuvchilar' },
+  { to: '/settings/printer',   icon: 'mdi-printer',            title: 'Printer' },
 ]
 
 async function doLogout() {
@@ -233,7 +270,6 @@ async function doLogout() {
 
 onMounted(() => {
   notifStore.fetchUnreadCount()
-  // Poll every 30s
   setInterval(() => notifStore.fetchUnreadCount(), 30000)
 })
 </script>

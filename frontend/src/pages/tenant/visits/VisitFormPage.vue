@@ -341,10 +341,10 @@ const paymentMethods = [
   { title: "Sug'urta",  value: 'insurance' },
 ]
 
-const svcSubtotal = computed(() => form.services.reduce((s, sv) => s + (sv.quantity || 0) * (sv.price || 0), 0))
+const svcSubtotal = computed(() => form.services.reduce((s, sv) => s + (sv.quantity || 0) * (Number(sv.price) || 0), 0))
 const invSubtotal = computed(() => form.inventory.reduce((s, inv) => {
   const item = allInventory.value.find(i => i.id === inv.item_id)
-  return s + (inv.quantity_used || 0) * (item?.price_per_unit || 0)
+  return s + (Number(inv.quantity_used) || 0) * (Number(item?.price_per_unit) || 0)
 }, 0))
 const subtotal   = computed(() => svcSubtotal.value + invSubtotal.value)
 const totalToPay = computed(() => Math.max(0, subtotal.value - (form.discount || 0)))
@@ -415,7 +415,7 @@ function onServiceSelect(svc) {
 }
 function getUnit(itemId)     { return allInventory.value.find(i => i.id === itemId)?.unit           || '' }
 function getItemName(itemId) { return allInventory.value.find(i => i.id === itemId)?.name           || '' }
-function getInvPrice(inv)    { return (inv.quantity_used || 0) * (allInventory.value.find(i => i.id === inv.item_id)?.price_per_unit || 0) }
+function getInvPrice(inv)    { return (Number(inv.quantity_used) || 0) * (Number(allInventory.value.find(i => i.id === inv.item_id)?.price_per_unit) || 0) }
 
 let invTimer = null
 async function searchInventory(q) {

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Events\PaymentReceived;
-use App\Events\VisitRegistered;
 use App\Models\InventoryItem;
 use App\Models\InventoryTransaction;
 use App\Models\Notification;
@@ -130,7 +129,6 @@ class VisitController extends Controller
             }
 
             $loaded = $visit->load(['patient', 'doctor.user', 'services.service', 'inventory.item']);
-            event(new VisitRegistered($loaded));
 
             return response()->json($loaded, 201);
         });
@@ -175,9 +173,7 @@ class VisitController extends Controller
 
         $updated = $visit->fresh();
 
-        // Skip notification when called as part of initial visit creation (visits/new form)
-        // to avoid duplicate with VisitRegistered notification
-        if (!$wasAlreadyPaid && $updated->is_paid && !$request->boolean('from_creation')) {
+        if (!$wasAlreadyPaid && $updated->is_paid) {
             event(new PaymentReceived($updated));
         }
 

@@ -6,29 +6,20 @@ use App\Models\TelegramSetting;
 use App\Services\TelegramService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class SendTelegramNotification implements ShouldQueue, ShouldBeUnique
+class SendTelegramNotification implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
 
-    // Prevent identical messages from being queued within 30 seconds
-    public int $uniqueFor = 30;
-
     public function __construct(
         private string $tenantId,
         private string $message
     ) {}
-
-    public function uniqueId(): string
-    {
-        return md5($this->tenantId . '|' . $this->message);
-    }
 
     public function handle(TelegramService $telegram): void
     {

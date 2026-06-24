@@ -178,8 +178,12 @@
             </div>
             <v-divider class="my-3" />
             <div class="d-flex justify-end gap-4">
-              <div class="text-body-2 text-medium-emphasis">Jami:</div>
-              <div class="font-weight-bold">{{ formatMoney(subtotal) }}</div>
+              <div class="text-body-2 text-medium-emphasis">Xizmatlar:</div>
+              <div class="font-weight-bold">{{ formatMoney(svcSubtotal) }}</div>
+            </div>
+            <div v-if="invSubtotal > 0" class="d-flex justify-end gap-4 mt-1">
+              <div class="text-body-2 text-medium-emphasis">Materiallar:</div>
+              <div class="font-weight-bold">{{ formatMoney(invSubtotal) }}</div>
             </div>
             <div class="d-flex align-center gap-4 mt-2 justify-end">
               <div class="text-body-2 text-medium-emphasis">Chegirma (so'm):</div>
@@ -236,8 +240,9 @@
           <v-card-title class="pa-4 pb-0">To'lov</v-card-title>
           <v-card-text class="pa-4">
             <v-list lines="one" density="compact" class="mb-3">
-              <v-list-item title="Jami xizmatlar" :subtitle="formatMoney(subtotal)" />
-              <v-list-item title="Chegirma" :subtitle="'-' + formatMoney(form.discount)" />
+              <v-list-item title="Xizmatlar" :subtitle="formatMoney(svcSubtotal)" />
+              <v-list-item v-if="invSubtotal > 0" title="Materiallar" :subtitle="formatMoney(invSubtotal)" />
+              <v-list-item v-if="form.discount > 0" title="Chegirma" :subtitle="'-' + formatMoney(form.discount)" />
               <v-divider />
               <v-list-item title="TO'LANADIGAN" :subtitle="formatMoney(totalToPay)" class="font-weight-bold" />
             </v-list>
@@ -336,11 +341,12 @@ const paymentMethods = [
   { title: "Sug'urta",  value: 'insurance' },
 ]
 
+const svcSubtotal = computed(() => form.services.reduce((s, sv) => s + (sv.quantity || 0) * (sv.price || 0), 0))
 const invSubtotal = computed(() => form.inventory.reduce((s, inv) => {
   const item = allInventory.value.find(i => i.id === inv.item_id)
   return s + (inv.quantity_used || 0) * (item?.price_per_unit || 0)
 }, 0))
-const subtotal   = computed(() => form.services.reduce((s, sv) => s + (sv.quantity || 0) * (sv.price || 0), 0) + invSubtotal.value)
+const subtotal   = computed(() => svcSubtotal.value + invSubtotal.value)
 const totalToPay = computed(() => Math.max(0, subtotal.value - (form.discount || 0)))
 
 function formatMoney(v)  { return v ? Number(v).toLocaleString('uz-UZ') + " so'm" : '0' }

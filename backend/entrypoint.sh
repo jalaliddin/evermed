@@ -30,8 +30,12 @@ mkdir -p storage/framework/{sessions,views,cache} \
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
 
 # ── Run central migrations ─────────────────────────────────────────────────────
-echo "[entrypoint] Running migrations..."
+echo "[entrypoint] Running central migrations..."
 php artisan migrate --force --no-interaction
+
+# ── Run tenant migrations ──────────────────────────────────────────────────────
+echo "[entrypoint] Running tenant migrations..."
+php artisan tenants:migrate --force --no-interaction
 
 # ── Public storage symlink ─────────────────────────────────────────────────────
 php artisan storage:link --force 2>/dev/null || true

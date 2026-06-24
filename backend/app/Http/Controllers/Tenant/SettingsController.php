@@ -151,7 +151,7 @@ class SettingsController extends Controller
     {
         $tenantId = tenant('id');
         $settings = TenantSetting::where('tenant_id', $tenantId)
-            ->whereIn('key', ['printer_type', 'printer_ip', 'printer_port'])
+            ->whereIn('key', ['printer_type', 'printer_ip', 'printer_port', 'printer_path'])
             ->pluck('value', 'key');
 
         return response()->json($settings);
@@ -160,13 +160,15 @@ class SettingsController extends Controller
     public function updatePrinter(Request $request)
     {
         $validated = $request->validate([
-            'printer_type' => 'required|in:usb,network,serial',
-            'printer_ip' => 'nullable|ip',
+            'printer_type' => 'required|in:usb,network,disabled',
+            'printer_ip'   => 'nullable|ip',
             'printer_port' => 'nullable|integer',
+            'printer_path' => 'nullable|string',
         ]);
 
         $tenantId = tenant('id');
         foreach ($validated as $key => $value) {
+            if ($value === null) continue;
             TenantSetting::updateOrCreate(
                 ['tenant_id' => $tenantId, 'key' => $key],
                 ['value' => $value]
@@ -174,6 +176,37 @@ class SettingsController extends Controller
         }
 
         return response()->json(['message' => 'Updated']);
+    }
+
+    public function testPrint(Request $request)
+    {
+        $request->validate([
+            'printer_type' => 'required|in:usb,network',
+            'printer_host' => 'nullable|ip',
+            'printer_port' => 'nullable|integer',
+            'printer_path' => 'nullable|string',
+        ]);
+
+        try {
+            $connector = match ($request->printer_type) {
+                'usb'   => new \Mike42\Escpos\PrintConnectors\FilePrintConnector($request->printer_path ?? '/dev/usb/lp0'),
+                default => new \Mike42\Escpos\PrintConnectors\NetworkPrintConnector($request->printer_host, $request->printer_port ?? 9100),
+            };
+            $printer = new \Mike42\Escpos\Printer($connector);
+            $printer->setJustification(\Mike42\Escpos\Printer::JUSTIFY_CENTER);
+            $printer->text("EverMED CRM\n");
+            $printer->text("================================\n");
+            $printer->text("Test chek muvaffaqiyatli!\n");
+            $printer->text("XP-80TS 80mm\n");
+            $printer->text("================================\n");
+            $printer->feed(3);
+            $printer->cut();
+            $printer->close();
+            return response()->json(['success' => true]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Test print error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        }
     }
 
     public function users(Request $request)

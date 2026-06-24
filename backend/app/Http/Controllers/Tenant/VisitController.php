@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Events\PaymentReceived;
+use App\Events\VisitRegistered;
 use App\Models\InventoryItem;
 use App\Models\InventoryTransaction;
 use App\Models\Notification;
@@ -112,7 +113,10 @@ class VisitController extends Controller
                     ?->update(['status' => 'in_progress']);
             }
 
-            return response()->json($visit->load(['patient', 'doctor.user', 'services.service', 'inventory.item']), 201);
+            $loaded = $visit->load(['patient', 'doctor.user', 'services.service', 'inventory.item']);
+            event(new VisitRegistered($loaded));
+
+            return response()->json($loaded, 201);
         });
     }
 

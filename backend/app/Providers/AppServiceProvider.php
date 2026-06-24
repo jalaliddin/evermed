@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Events\AppointmentStatusChanged;
 use App\Events\PaymentReceived;
+use App\Events\VisitRegistered;
 use App\Listeners\SendAppointmentNotification;
 use App\Listeners\SendPaymentNotification;
+use App\Listeners\SendVisitNotification;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,5 +23,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Event::listen(AppointmentStatusChanged::class, SendAppointmentNotification::class);
         Event::listen(PaymentReceived::class, SendPaymentNotification::class);
+        Event::listen(VisitRegistered::class, SendVisitNotification::class);
     }
 }

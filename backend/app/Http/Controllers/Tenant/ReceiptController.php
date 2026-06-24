@@ -21,15 +21,19 @@ class ReceiptController extends Controller
     public function print(Request $request, Visit $visit)
     {
         $request->validate([
-            'printer_ip' => 'required|ip',
+            'printer_type' => 'nullable|in:usb,network',
+            'printer_ip'   => 'nullable|ip',
             'printer_port' => 'nullable|integer',
+            'printer_path' => 'nullable|string',
         ]);
 
         $receipt = $this->receiptService->createReceipt($visit);
         $success = $this->receiptService->printReceipt(
             $visit,
-            $request->printer_ip,
-            $request->printer_port ?? 9100
+            $request->printer_type ?? 'network',
+            $request->printer_ip   ?? '',
+            $request->printer_port ?? 9100,
+            $request->printer_path ?? '/dev/usb/lp0'
         );
 
         return response()->json([

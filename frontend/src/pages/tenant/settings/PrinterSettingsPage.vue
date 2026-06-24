@@ -120,8 +120,9 @@ async function save() {
   try {
     await tenantApi.put('/settings/printer', {
       printer_type: form.printer_type,
-      printer_ip: form.printer_host,
+      printer_ip:   form.printer_host,
       printer_port: form.printer_port,
+      printer_path: form.printer_path,
     })
     snackbar.value = { show: true, text: 'Saqlandi', color: 'success' }
   } catch {
@@ -133,7 +134,10 @@ async function load() {
   try {
     const res = await tenantApi.get('/settings/printer')
     const s = res.data
-    Object.keys(form).forEach(k => { if (s[k] !== undefined) form[k] = s[k] })
+    if (s.printer_type)  form.printer_type = s.printer_type
+    if (s.printer_ip)    form.printer_host = s.printer_ip
+    if (s.printer_port)  form.printer_port = Number(s.printer_port)
+    if (s.printer_path)  form.printer_path = s.printer_path
   } catch { /* not configured yet */ }
 }
 

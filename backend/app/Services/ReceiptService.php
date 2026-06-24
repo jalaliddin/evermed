@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Models\Receipt;
 use App\Models\Visit;
+use Illuminate\Support\Facades\Log;
 use Mike42\Escpos\Printer;
+use Mike42\Escpos\PrintConnectors\FilePrintConnector;
 use Mike42\Escpos\PrintConnectors\NetworkPrintConnector;
 
 class ReceiptService
@@ -95,12 +97,20 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 </html>";
     }
 
-    public function printReceipt(Visit $visit, string $printerIp, int $printerPort = 9100): bool
-    {
+    public function printReceipt(
+        Visit $visit,
+        string $printerType = 'network',
+        string $printerHost = '',
+        int $printerPort = 9100,
+        string $printerPath = '/dev/usb/lp0'
+    ): bool {
         try {
             $visit->loadMissing(['patient', 'doctor.user', 'services.service', 'inventory.item']);
 
-            $connector = new NetworkPrintConnector($printerIp, $printerPort);
+            $connector = match ($printerType) {
+                'usb'   => new FilePrintConnector($printerPath),
+                default => new NetworkPrintConnector($printerHost, $printerPort),
+            };
             $printer = new Printer($connector);
 
             $clinicName = tenant('name') ?? 'EverMED CRM';

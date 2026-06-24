@@ -216,7 +216,9 @@
                 class="flex-grow-1"
                 :loading="invLoading"
                 @update:search="searchInventory"
+                @update:model-value="() => {}"
                 no-data-text="Qidiring..."
+                clearable
               />
               <v-text-field v-model.number="inv.quantity_used" label="Miqdor" type="number" variant="outlined" density="compact" hide-details style="max-width: 110px;" :suffix="getUnit(inv.item_id)" />
               <v-btn icon="mdi-close" size="small" variant="text" color="error" @click="removeInventory(i)" />
@@ -419,11 +421,19 @@ function getInvPrice(inv)    { return (Number(inv.quantity_used) || 0) * (Number
 
 let invTimer = null
 async function searchInventory(q) {
+  // Skip when autocomplete resets after selection (null/undefined/empty with selected items)
+  if (!q && form.inventory.some(i => i.item_id)) return
   clearTimeout(invTimer)
   invTimer = setTimeout(async () => {
     invLoading.value = true
     const res = await tenantApi.get('/inventory', { params: { search: q || '', per_page: 50 } })
-    allInventory.value = res.data.data || []
+    const fetched = res.data.data || []
+    // Preserve already-selected items so getUnit/getInvPrice keep working
+    const selectedIds = form.inventory.map(i => i.item_id).filter(Boolean)
+    const kept = allInventory.value.filter(
+      i => selectedIds.includes(i.id) && !fetched.find(f => f.id === i.id)
+    )
+    allInventory.value = [...fetched, ...kept]
     invLoading.value = false
   }, 300)
 }

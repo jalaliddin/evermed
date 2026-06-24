@@ -86,6 +86,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
+        if (tenancy()->initialized) tenancy()->end();
         return response()->json(['message' => 'Logged out']);
     }
 
@@ -95,6 +96,11 @@ class AuthController extends Controller
         if ($user instanceof Admin) {
             return response()->json(['user' => $user, 'type' => 'admin']);
         }
-        return response()->json(['user' => $user->load('doctor'), 'type' => 'tenant']);
+        $tenantId = $request->header('X-Tenant') ?? $request->query('tenant');
+        return response()->json([
+            'user'      => $user->load('doctor'),
+            'type'      => 'tenant',
+            'tenant_id' => $tenantId,
+        ]);
     }
 }

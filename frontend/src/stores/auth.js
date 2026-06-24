@@ -51,6 +51,10 @@ export const useAuthStore = defineStore('auth', () => {
     userType.value = res.data.type
     localStorage.setItem('user', JSON.stringify(res.data.user))
     localStorage.setItem('user_type', res.data.type)
+    if (res.data.tenant_id) {
+      tenantId.value = res.data.tenant_id
+      localStorage.setItem('tenant_id', res.data.tenant_id)
+    }
     return res.data
   }
 

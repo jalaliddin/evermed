@@ -13,8 +13,12 @@ class PatientController extends Controller
     {
         $patients = Patient::query()
             ->when($request->search, function ($q) use ($request) {
-                $q->where('full_name', 'like', "%{$request->search}%")
-                  ->orWhere('phone', 'like', "%{$request->search}%");
+                $s = $request->search;
+                $q->where(function ($q) use ($s) {
+                    $q->where('full_name', 'like', "%{$s}%")
+                      ->orWhere('phone', 'like', "%{$s}%")
+                      ->orWhere('birth_date', 'like', "%{$s}%");
+                });
             })
             ->when($request->gender, fn($q) => $q->where('gender', $request->gender))
             ->when($request->blood_type, fn($q) => $q->where('blood_type', $request->blood_type))

@@ -13,7 +13,9 @@ Route::post('webhook/telegram/{tenantId}', [TelegramWebhookController::class, 'h
 // Auth (central)
 Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
-    Route::middleware('auth:sanctum')->group(function () {
+    // InitializeTenancyOptionally must run before auth:sanctum so tenant user
+    // tokens (stored in tenant DB) are found via the correct connection.
+    Route::middleware([\App\Http\Middleware\InitializeTenancyOptionally::class, 'auth:sanctum'])->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
     });

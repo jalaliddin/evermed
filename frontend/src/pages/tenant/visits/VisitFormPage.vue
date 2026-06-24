@@ -438,6 +438,27 @@ async function searchInventory(q) {
   }, 300)
 }
 
+function resetForm() {
+  form.patient_id     = null
+  form.doctor_id      = null
+  form.visited_at     = dayjs().format('YYYY-MM-DDTHH:mm')
+  form.diagnosis      = ''
+  form.prescription   = ''
+  form.discount       = 0
+  form.payment_method = 'cash'
+  form.services       = [{ service_id: null, quantity: 1, price: 0 }]
+  form.inventory      = []
+  selectedPatient.value   = null
+  patientItems.value      = []
+  newPatientMode.value    = false
+  newPatient.full_name    = ''
+  newPatient.birth_date   = ''
+  newPatient.phone        = ''
+  newPatient.gender       = null
+  newPatientErrors.full_name  = ''
+  newPatientErrors.birth_date = ''
+}
+
 async function saveVisit(printReceipt) {
   // 1. Validate patient
   if (newPatientMode.value) {
@@ -505,7 +526,7 @@ async function saveVisit(printReceipt) {
       window.open(`/api/tenant/visits/${visitId}/receipt-preview?tenant=${tenantId}`, '_blank')
     }
 
-    setTimeout(() => router.push(`/visits/${visitId}`), 600)
+    resetForm()
   } catch (e) {
     console.error(e)
     snackbar.value = { show: true, text: e.response?.data?.message || 'Xatolik yuz berdi', color: 'error' }

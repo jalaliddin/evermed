@@ -27,6 +27,10 @@ Route::middleware([
 
     Route::middleware('auth:sanctum')->group(function () {
 
+        // Auth — tenant-aware me/logout (token lives in tenant DB)
+        Route::get('auth/me', [\App\Http\Controllers\Auth\AuthController::class, 'me']);
+        Route::post('auth/logout', [\App\Http\Controllers\Auth\AuthController::class, 'logout']);
+
         // ── Shared (admin + receptionist) ──────────────────────────────────────
 
         // Dashboard

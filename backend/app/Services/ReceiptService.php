@@ -46,10 +46,13 @@ class ReceiptService
             $inventoryHtml .= "<tr><td colspan='3'><div class='divider'></div></td></tr>";
             $inventoryHtml .= "<tr><td colspan='3' style='font-size:10px;color:#666;padding-top:4px'>SARFLANGAN MATERIAL:</td></tr>";
             foreach ($visit->inventory as $inv) {
+                $invTotal = $inv->total_price > 0
+                    ? number_format($inv->total_price, 0, '.', ' ')
+                    : $inv->item->unit;
                 $inventoryHtml .= "<tr style='color:#555'>
-                    <td>{$inv->item->name}</td>
-                    <td style='text-align:center'>{$inv->quantity_used}</td>
-                    <td style='text-align:right'>{$inv->item->unit}</td>
+                    <td>{$inv->item->name} ×{$inv->quantity_used}</td>
+                    <td></td>
+                    <td style='text-align:right'>{$invTotal}</td>
                 </tr>";
             }
         }
@@ -136,13 +139,15 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
                 $printer->text(str_pad($line, 20) . str_pad($price, 10, ' ', STR_PAD_LEFT) . "\n");
             }
 
-            if ($visit->inventory && $visit->inventory->isNotEmpty()) {
+            if ($visit->inventory && $visit->inventory->count() > 0) {
                 $printer->text("--------------------------------\n");
                 $printer->text("SARFLANGAN MATERIAL:\n");
                 foreach ($visit->inventory as $inv) {
-                    $line = $inv->item->name;
-                    $qty  = $inv->quantity_used . ' ' . $inv->item->unit;
-                    $printer->text(str_pad($line, 22) . str_pad($qty, 8, ' ', STR_PAD_LEFT) . "\n");
+                    $name  = mb_substr($inv->item->name, 0, 18);
+                    $price = $inv->total_price > 0
+                        ? number_format((float) $inv->total_price, 0)
+                        : $inv->quantity_used . ' ' . $inv->item->unit;
+                    $printer->text(str_pad($name, 20) . str_pad($price, 10, ' ', STR_PAD_LEFT) . "\n");
                 }
             }
 
@@ -162,7 +167,7 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 
             return true;
         } catch (\Exception $e) {
-            \Log::error('Printer error: ' . $e->getMessage());
+            Log::error('Printer error: ' . $e->getMessage());
             return false;
         }
     }

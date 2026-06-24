@@ -66,6 +66,8 @@
           >
             <template #item.item="{ item }">{{ item.item?.name }}</template>
             <template #item.quantity_used="{ item }">{{ item.quantity_used }} {{ item.item?.unit }}</template>
+            <template #item.unit_price="{ item }">{{ item.unit_price > 0 ? formatMoney(item.unit_price) : '—' }}</template>
+            <template #item.total_price="{ item }">{{ item.total_price > 0 ? formatMoney(item.total_price) : '—' }}</template>
           </v-data-table>
         </v-card>
 
@@ -131,7 +133,9 @@ const svcHeaders = [
 
 const invHeaders = [
   { title: 'Material', key: 'item' },
-  { title: 'Miqdor', key: 'quantity_used', width: 140 },
+  { title: 'Miqdor', key: 'quantity_used', width: 120 },
+  { title: 'Narx', key: 'unit_price', width: 110 },
+  { title: 'Jami', key: 'total_price', width: 110 },
 ]
 
 const paymentMethods = [

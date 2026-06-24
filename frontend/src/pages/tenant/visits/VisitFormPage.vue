@@ -248,9 +248,15 @@
         <!-- Inventory summary -->
         <v-card v-if="form.inventory.length" rounded="xl" class="mb-4" color="secondary" variant="tonal">
           <v-card-text class="pa-3">
-            <div class="text-caption text-medium-emphasis mb-1">Inventar</div>
-            <div v-for="inv in form.inventory" :key="inv.item_id" class="text-body-2">
-              {{ getItemName(inv.item_id) }}: <strong>{{ inv.quantity_used }} {{ getUnit(inv.item_id) }}</strong>
+            <div class="text-caption text-medium-emphasis mb-2">Sarflangan inventar</div>
+            <div v-for="inv in form.inventory" :key="inv.item_id" class="d-flex justify-space-between text-body-2 py-1">
+              <span>{{ getItemName(inv.item_id) }} <span class="text-medium-emphasis">×{{ inv.quantity_used }} {{ getUnit(inv.item_id) }}</span></span>
+              <span class="font-weight-medium">{{ getInvPrice(inv) > 0 ? formatMoney(getInvPrice(inv)) : '' }}</span>
+            </div>
+            <v-divider class="my-1" v-if="invSubtotal > 0" />
+            <div v-if="invSubtotal > 0" class="d-flex justify-space-between text-body-2 font-weight-bold">
+              <span>Inventar jami:</span>
+              <span>{{ formatMoney(invSubtotal) }}</span>
             </div>
           </v-card-text>
         </v-card>
@@ -321,7 +327,7 @@ const serviceItems = computed(() => allServices.value.map(s => ({
   value: s.id,
 })))
 const inventoryItems = computed(() => allInventory.value.map(i => ({
-  title: `${i.name}${i.category ? ' (' + i.category + ')' : ''} — qoldi: ${i.quantity} ${i.unit}`,
+  title: `${i.name}${i.category ? ' (' + i.category + ')' : ''} — ${i.price_per_unit > 0 ? Number(i.price_per_unit).toLocaleString('uz-UZ') + " so'm/" + i.unit + ' | ' : ''}qoldi: ${i.quantity} ${i.unit}`,
   value: i.id,
 })))
 const paymentMethods = [
@@ -330,7 +336,11 @@ const paymentMethods = [
   { title: "Sug'urta",  value: 'insurance' },
 ]
 
-const subtotal   = computed(() => form.services.reduce((s, sv) => s + (sv.quantity || 0) * (sv.price || 0), 0))
+const invSubtotal = computed(() => form.inventory.reduce((s, inv) => {
+  const item = allInventory.value.find(i => i.id === inv.item_id)
+  return s + (inv.quantity_used || 0) * (item?.price_per_unit || 0)
+}, 0))
+const subtotal   = computed(() => form.services.reduce((s, sv) => s + (sv.quantity || 0) * (sv.price || 0), 0) + invSubtotal.value)
 const totalToPay = computed(() => Math.max(0, subtotal.value - (form.discount || 0)))
 
 function formatMoney(v)  { return v ? Number(v).toLocaleString('uz-UZ') + " so'm" : '0' }
@@ -397,8 +407,9 @@ function onServiceSelect(svc) {
   const s = allServices.value.find(x => x.id === svc.service_id)
   if (s) svc.price = parseFloat(s.price)
 }
-function getUnit(itemId)     { return allInventory.value.find(i => i.id === itemId)?.unit  || '' }
-function getItemName(itemId) { return allInventory.value.find(i => i.id === itemId)?.name  || '' }
+function getUnit(itemId)     { return allInventory.value.find(i => i.id === itemId)?.unit           || '' }
+function getItemName(itemId) { return allInventory.value.find(i => i.id === itemId)?.name           || '' }
+function getInvPrice(inv)    { return (inv.quantity_used || 0) * (allInventory.value.find(i => i.id === inv.item_id)?.price_per_unit || 0) }
 
 let invTimer = null
 async function searchInventory(q) {

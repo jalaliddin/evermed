@@ -103,8 +103,8 @@
                         <v-divider class="my-2" />
                         <div class="text-caption font-weight-bold text-medium-emphasis mb-1">SARFLANGAN MATERIAL</div>
                         <div v-for="inv in visit.inventory" :key="inv.id" class="d-flex justify-space-between text-body-2 py-1">
-                          <span>{{ inv.item?.name }}</span>
-                          <span class="text-medium-emphasis">{{ inv.quantity_used }} {{ inv.item?.unit }}</span>
+                          <span>{{ inv.item?.name }} <span class="text-medium-emphasis">×{{ inv.quantity_used }} {{ inv.item?.unit }}</span></span>
+                          <span class="text-medium-emphasis">{{ inv.total_price > 0 ? formatMoney(inv.total_price) : '' }}</span>
                         </div>
                       </template>
 

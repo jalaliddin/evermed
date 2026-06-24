@@ -55,55 +55,71 @@ class VisitController extends Controller
             $totalAmount = collect($validated['services'])->sum(fn($s) => $s['price'] * $s['quantity']);
             $discount = $validated['discount'] ?? 0;
 
+            // Pre-load inventory items to calculate total and avoid N+1
+            $inventoryItems = collect($validated['inventory'] ?? [])->keyBy('item_id')->map(
+                fn($inv) => ['inv' => $inv, 'item' => InventoryItem::find($inv['item_id'])]
+            );
+
+            foreach ($inventoryItems as $entry) {
+                $totalAmount += ($entry['item']->price_per_unit ?? 0) * $entry['inv']['quantity_used'];
+            }
+
             $visit = Visit::create([
-                'patient_id' => $validated['patient_id'],
-                'doctor_id' => $validated['doctor_id'],
+                'patient_id'     => $validated['patient_id'],
+                'doctor_id'      => $validated['doctor_id'],
                 'appointment_id' => $validated['appointment_id'] ?? null,
-                'visited_at' => $validated['visited_at'] ?? now(),
-                'diagnosis' => $validated['diagnosis'] ?? null,
-                'prescription' => $validated['prescription'] ?? null,
-                'notes' => $validated['notes'] ?? null,
-                'total_amount' => $totalAmount,
-                'discount' => $discount,
-                'paid_amount' => 0,
+                'visited_at'     => $validated['visited_at'] ?? now(),
+                'diagnosis'      => $validated['diagnosis'] ?? null,
+                'prescription'   => $validated['prescription'] ?? null,
+                'notes'          => $validated['notes'] ?? null,
+                'total_amount'   => $totalAmount,
+                'discount'       => $discount,
+                'paid_amount'    => 0,
                 'payment_method' => $validated['payment_method'] ?? 'cash',
-                'is_paid' => false,
+                'is_paid'        => false,
             ]);
 
             foreach ($validated['services'] as $svc) {
                 VisitService::create([
-                    'visit_id' => $visit->id,
+                    'visit_id'   => $visit->id,
                     'service_id' => $svc['service_id'],
-                    'quantity' => $svc['quantity'],
-                    'price' => $svc['price'],
-                    'total' => $svc['price'] * $svc['quantity'],
+                    'quantity'   => $svc['quantity'],
+                    'price'      => $svc['price'],
+                    'total'      => $svc['price'] * $svc['quantity'],
                 ]);
             }
 
-            foreach ($validated['inventory'] ?? [] as $inv) {
+            foreach ($inventoryItems as $entry) {
+                $inv  = $entry['inv'];
+                $item = $entry['item'];
+                $unitPrice  = (float) ($item->price_per_unit ?? 0);
+                $totalPrice = $unitPrice * $inv['quantity_used'];
+
                 VisitInventory::create([
-                    'visit_id' => $visit->id,
-                    'item_id' => $inv['item_id'],
+                    'visit_id'     => $visit->id,
+                    'item_id'      => $inv['item_id'],
                     'quantity_used' => $inv['quantity_used'],
+                    'unit_price'   => $unitPrice,
+                    'total_price'  => $totalPrice,
                 ]);
 
-                $item = InventoryItem::find($inv['item_id']);
                 $item->decrement('quantity', $inv['quantity_used']);
                 InventoryTransaction::create([
-                    'item_id' => $inv['item_id'],
-                    'type' => 'out',
-                    'quantity' => $inv['quantity_used'],
+                    'item_id'        => $inv['item_id'],
+                    'type'           => 'out',
+                    'quantity'       => $inv['quantity_used'],
                     'reference_type' => Visit::class,
-                    'reference_id' => $visit->id,
-                    'performed_by' => auth()->id(),
+                    'reference_id'   => $visit->id,
+                    'performed_by'   => auth()->id(),
                 ]);
 
-                if ($item->fresh()->quantity <= $item->min_quantity) {
+                $remaining = (float) $item->fresh()->quantity;
+                if ($remaining <= (float) $item->min_quantity) {
                     Notification::create([
-                        'type' => 'low_stock',
+                        'type'  => 'low_stock',
                         'title' => 'Inventar kam qoldi',
-                        'body' => "{$item->name}: {$item->fresh()->quantity} {$item->unit} qoldi (min: {$item->min_quantity})",
-                        'data' => ['item_id' => $item->id],
+                        'body'  => "{$item->name}: {$remaining} {$item->unit} qoldi (min: {$item->min_quantity})",
+                        'data'  => ['item_id' => $item->id],
                     ]);
                 }
             }

@@ -21,6 +21,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Guard against duplicate registration (can happen in tenancy context)
+        if (Event::hasListeners(PaymentReceived::class)) return;
+
         Event::listen(AppointmentStatusChanged::class, SendAppointmentNotification::class);
         Event::listen(PaymentReceived::class, SendPaymentNotification::class);
         Event::listen(VisitRegistered::class, SendVisitNotification::class);

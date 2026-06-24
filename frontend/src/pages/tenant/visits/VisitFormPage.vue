@@ -517,6 +517,7 @@ async function saveVisit(printReceipt) {
     await tenantApi.post(`/visits/${visitId}/pay`, {
       paid_amount:    totalToPay.value,
       payment_method: form.payment_method,
+      from_creation:  true,
     })
 
     snackbar.value = { show: true, text: 'Tashrif saqlandi', color: 'success' }

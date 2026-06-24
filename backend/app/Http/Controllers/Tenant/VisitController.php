@@ -175,7 +175,9 @@ class VisitController extends Controller
 
         $updated = $visit->fresh();
 
-        if (!$wasAlreadyPaid && $updated->is_paid) {
+        // Skip notification when called as part of initial visit creation (visits/new form)
+        // to avoid duplicate with VisitRegistered notification
+        if (!$wasAlreadyPaid && $updated->is_paid && !$request->boolean('from_creation')) {
             event(new PaymentReceived($updated));
         }
 

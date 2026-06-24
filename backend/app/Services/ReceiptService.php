@@ -25,7 +25,7 @@ class ReceiptService
 
     public function generateHtml(Visit $visit): string
     {
-        $visit->loadMissing(['patient', 'doctor.user', 'services.service']);
+        $visit->loadMissing(['patient', 'doctor.user', 'services.service', 'inventory.item']);
 
         $clinicName = tenant('name') ?? 'EverMED CRM';
         $receipt = $this->createReceipt($visit);
@@ -37,6 +37,19 @@ class ReceiptService
                 <td style='text-align:center'>{$vs->quantity}</td>
                 <td style='text-align:right'>" . number_format($vs->total, 0, '.', ' ') . "</td>
             </tr>";
+        }
+
+        $inventoryHtml = '';
+        if ($visit->inventory && $visit->inventory->isNotEmpty()) {
+            $inventoryHtml .= "<tr><td colspan='3'><div class='divider'></div></td></tr>";
+            $inventoryHtml .= "<tr><td colspan='3' style='font-size:10px;color:#666;padding-top:4px'>SARFLANGAN MATERIAL:</td></tr>";
+            foreach ($visit->inventory as $inv) {
+                $inventoryHtml .= "<tr style='color:#555'>
+                    <td>{$inv->item->name}</td>
+                    <td style='text-align:center'>{$inv->quantity_used}</td>
+                    <td style='text-align:right'>{$inv->item->unit}</td>
+                </tr>";
+            }
         }
 
         $discount = $visit->discount > 0 ? "<tr><td colspan='2'>Chegirma:</td><td style='text-align:right'>-" . number_format($visit->discount, 0, '.', ' ') . "</td></tr>" : '';
@@ -69,6 +82,7 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
 <table>
 <tr><th style='text-align:left'>Xizmat</th><th>Soni</th><th style='text-align:right'>Jami</th></tr>
 {$servicesHtml}
+{$inventoryHtml}
 <tr><td colspan='3'><div class='divider'></div></td></tr>
 <tr><td colspan='2'>Jami:</td><td style='text-align:right'>" . number_format($visit->total_amount, 0, '.', ' ') . "</td></tr>
 {$discount}
@@ -84,6 +98,8 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
     public function printReceipt(Visit $visit, string $printerIp, int $printerPort = 9100): bool
     {
         try {
+            $visit->loadMissing(['patient', 'doctor.user', 'services.service', 'inventory.item']);
+
             $connector = new NetworkPrintConnector($printerIp, $printerPort);
             $printer = new Printer($connector);
 
@@ -93,7 +109,6 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
             $printer->setJustification(Printer::JUSTIFY_CENTER);
             $printer->setTextSize(1, 1);
             $printer->text($clinicName . "\n");
-            $printer->setJustification(Printer::JUSTIFY_CENTER);
             $printer->text("================================\n");
 
             $printer->setJustification(Printer::JUSTIFY_LEFT);
@@ -111,14 +126,22 @@ table { width: 100%; border-collapse: collapse; font-size: 12px; }
                 $printer->text(str_pad($line, 20) . str_pad($price, 10, ' ', STR_PAD_LEFT) . "\n");
             }
 
+            if ($visit->inventory && $visit->inventory->isNotEmpty()) {
+                $printer->text("--------------------------------\n");
+                $printer->text("SARFLANGAN MATERIAL:\n");
+                foreach ($visit->inventory as $inv) {
+                    $line = $inv->item->name;
+                    $qty  = $inv->quantity_used . ' ' . $inv->item->unit;
+                    $printer->text(str_pad($line, 22) . str_pad($qty, 8, ' ', STR_PAD_LEFT) . "\n");
+                }
+            }
+
             $printer->text("--------------------------------\n");
             $printer->text("Jami: " . str_pad(number_format($visit->total_amount, 0), 23, ' ', STR_PAD_LEFT) . "\n");
             if ($visit->discount > 0) {
                 $printer->text("Chegirma: " . str_pad('-' . number_format($visit->discount, 0), 20, ' ', STR_PAD_LEFT) . "\n");
             }
-            $printer->setTextSize(1, 1);
             $printer->text("TO'LOV: " . str_pad(number_format($visit->paid_amount, 0), 21, ' ', STR_PAD_LEFT) . "\n");
-            $printer->setTextSize(1, 1);
             $printer->text("Usul: " . ucfirst($visit->payment_method) . "\n");
             $printer->text("================================\n");
             $printer->setJustification(Printer::JUSTIFY_CENTER);

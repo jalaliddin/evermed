@@ -64,24 +64,66 @@
           <v-window v-model="tab" class="pa-4">
             <!-- Visits Tab -->
             <v-window-item value="visits">
-              <v-data-table
-                :headers="visitHeaders"
-                :items="visits"
-                :loading="visitsLoading"
-                density="compact"
-              >
-                <template #item.visited_at="{ item }">{{ formatDate(item.visited_at) }}</template>
-                <template #item.doctor="{ item }">Dr. {{ item.doctor?.user?.name }}</template>
-                <template #item.paid_amount="{ item }">{{ formatMoney(item.paid_amount) }}</template>
-                <template #item.is_paid="{ item }">
-                  <v-chip :color="item.is_paid ? 'success' : 'warning'" size="small" label>
-                    {{ item.is_paid ? "To'langan" : 'Qarz' }}
-                  </v-chip>
-                </template>
-                <template #item.actions="{ item }">
-                  <v-btn icon="mdi-eye-outline" size="small" variant="text" :to="`/visits/${item.id}`" />
-                </template>
-              </v-data-table>
+              <div v-if="visitsLoading" class="text-center pa-8">
+                <v-progress-circular indeterminate color="primary" />
+              </div>
+              <div v-else-if="visits.length === 0" class="text-center pa-8 text-medium-emphasis">
+                <v-icon size="48" class="mb-2">mdi-calendar-blank</v-icon>
+                <div>Tashriflar yo'q</div>
+              </div>
+              <v-expansion-panels v-else variant="accordion" class="mt-1">
+                <v-expansion-panel v-for="visit in visits" :key="visit.id" rounded="lg">
+                  <v-expansion-panel-title>
+                    <div class="d-flex align-center gap-3 w-100">
+                      <div class="text-body-2 font-weight-bold" style="min-width:90px">
+                        {{ formatDate(visit.visited_at) }}
+                      </div>
+                      <div class="text-body-2 text-medium-emphasis flex-grow-1">
+                        Dr. {{ visit.doctor?.user?.name }}
+                      </div>
+                      <div class="text-body-2 font-weight-bold mr-2">
+                        {{ formatMoney(visit.paid_amount) }}
+                      </div>
+                      <v-chip :color="visit.is_paid ? 'success' : 'warning'" size="x-small" label class="mr-2">
+                        {{ visit.is_paid ? "To'langan" : 'Qarz' }}
+                      </v-chip>
+                    </div>
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <div class="py-1">
+                      <!-- Services -->
+                      <div class="text-caption font-weight-bold text-medium-emphasis mb-1">XIZMATLAR</div>
+                      <div v-for="svc in visit.services" :key="svc.id" class="d-flex justify-space-between text-body-2 py-1">
+                        <span>{{ svc.service?.name }} <span v-if="svc.quantity > 1" class="text-medium-emphasis">×{{ svc.quantity }}</span></span>
+                        <span class="font-weight-medium">{{ formatMoney(svc.total) }}</span>
+                      </div>
+
+                      <!-- Inventory -->
+                      <template v-if="visit.inventory?.length">
+                        <v-divider class="my-2" />
+                        <div class="text-caption font-weight-bold text-medium-emphasis mb-1">SARFLANGAN MATERIAL</div>
+                        <div v-for="inv in visit.inventory" :key="inv.id" class="d-flex justify-space-between text-body-2 py-1">
+                          <span>{{ inv.item?.name }}</span>
+                          <span class="text-medium-emphasis">{{ inv.quantity_used }} {{ inv.item?.unit }}</span>
+                        </div>
+                      </template>
+
+                      <!-- Diagnosis -->
+                      <template v-if="visit.diagnosis">
+                        <v-divider class="my-2" />
+                        <div class="text-caption font-weight-bold text-medium-emphasis mb-1">DIAGNOZ</div>
+                        <div class="text-body-2" style="white-space:pre-wrap">{{ visit.diagnosis }}</div>
+                      </template>
+
+                      <div class="d-flex justify-end mt-3">
+                        <v-btn size="small" variant="tonal" :to="`/visits/${visit.id}`" prepend-icon="mdi-eye-outline">
+                          Batafsil
+                        </v-btn>
+                      </div>
+                    </div>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
             </v-window-item>
 
             <!-- Notes Tab -->
@@ -121,14 +163,6 @@ const visits = ref([])
 const tab = ref('visits')
 const visitsLoading = ref(false)
 const showAppointmentDialog = ref(false)
-
-const visitHeaders = [
-  { title: 'Sana', key: 'visited_at' },
-  { title: 'Shifokor', key: 'doctor' },
-  { title: "To'lov", key: 'paid_amount' },
-  { title: 'Holat', key: 'is_paid' },
-  { title: '', key: 'actions', sortable: false, width: 60 },
-]
 
 function formatDate(d) { return d ? dayjs(d).format('DD.MM.YYYY') : '—' }
 function age(d) { return d ? dayjs().diff(dayjs(d), 'year') : '' }

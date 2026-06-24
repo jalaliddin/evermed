@@ -53,6 +53,22 @@
           </v-data-table>
         </v-card>
 
+        <!-- Inventory -->
+        <v-card rounded="xl" class="mb-4" v-if="visit.inventory?.length">
+          <v-card-title class="pa-4 pb-0">
+            <v-icon class="mr-2" size="20">mdi-package-variant</v-icon>Sarflangan materiallar
+          </v-card-title>
+          <v-data-table
+            :headers="invHeaders"
+            :items="visit.inventory || []"
+            density="compact"
+            hide-default-footer
+          >
+            <template #item.item="{ item }">{{ item.item?.name }}</template>
+            <template #item.quantity_used="{ item }">{{ item.quantity_used }} {{ item.item?.unit }}</template>
+          </v-data-table>
+        </v-card>
+
         <!-- Diagnosis -->
         <v-card rounded="xl" v-if="visit.diagnosis || visit.prescription">
           <v-card-title class="pa-4 pb-0">Diagnoz va retsept</v-card-title>
@@ -111,6 +127,11 @@ const svcHeaders = [
   { title: 'Soni', key: 'quantity', width: 80 },
   { title: 'Narx', key: 'price', width: 120 },
   { title: 'Jami', key: 'total', width: 120 },
+]
+
+const invHeaders = [
+  { title: 'Material', key: 'item' },
+  { title: 'Miqdor', key: 'quantity_used', width: 140 },
 ]
 
 const paymentMethods = [

@@ -87,9 +87,9 @@ class PatientController extends Controller
     public function visits(Patient $patient)
     {
         $visits = $patient->visits()
-            ->with(['doctor.user', 'services.service'])
+            ->with(['doctor.user', 'services.service', 'inventory.item'])
             ->latest('visited_at')
-            ->paginate(10);
+            ->paginate(20);
         return response()->json($visits);
     }
 

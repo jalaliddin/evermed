@@ -39,7 +39,7 @@ class SendVisitNotification
             $inventoryLines = "\n🧪 <b>Materiallar:</b>\n{$lines}\n";
         }
 
-        $message  = "📋 <b>EverMED — YANGI TASHRIF</b>\n";
+        $message  = "📋 <b>ELAMRAM — YANGI TASHRIF</b>\n";
         $message .= "━━━━━━━━━━━━━━━━━━━━\n";
         $message .= "👤 <b>Bemor:</b> {$visit->patient->full_name}\n";
         if ($visit->patient->phone) {
